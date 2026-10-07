@@ -1199,6 +1199,52 @@ pub struct MultiSigProposal {
     pub approval_count: u32,
 }
 
+/// Contract-level error codes representing failure conditions.
+///
+/// # Wire-Stability & Append-Only Convention
+///
+/// On-chain Soroban contract invocations return raw numeric error codes (`ScError::Contract(u32)`).
+/// Off-chain systems, client SDKs, event indexers, and backend services depend on these numeric
+/// codes remaining wire-stable across contract upgrades.
+///
+/// **Rule for adding new error variants:**
+/// 1. **Append-Only Numeric Allocation**:
+///    - New error variants MUST be assigned monotonically increasing unique numbers appended at
+///      the end of the existing sequence (e.g. `NextError = Self(146)`).
+///    - NEVER renumber, reorder, or recycle existing numeric codes, as doing so shifts existing
+///      error discriminants and breaks backwards compatibility with deployed clients and databases.
+///
+/// 2. **Off-Chain Name Mapping (`name(&self)`)**:
+///    - If the error can be emitted as part of public contract operations or events (such as
+///      `emit_operation_failed` or vault/stream/dividend/staking entry points), add the corresponding
+///      numeric code to the `match` expression in [`Error::name`].
+///    - Unmapped error codes safely fall back to `"UnknownError"`.
+///
+/// 3. **Lockstep Backend & Frontend Synchronization**:
+///    Whenever a new `Error` variant is added or mapped in `Error::name()`, ensure the following
+///    downstream consumers are updated in lockstep if they consume or translate that error:
+///    - `backend/src/services/vaultEventParser.ts`: Update `VaultErrorCode` enum if the error pertains
+///      to vault lifecycle operations parsed by the backend. (Note: unlisted codes still parse cleanly
+///      via `VaultErrorName` fallback).
+///    - `backend/src/services/dividendService.ts`: Update `CONTRACT_ERROR_MAP` if the error pertains to
+///      dividend claims or distributions.
+///    - `backend/src/__tests__/contract-consistency.test.ts`: Update `ContractError` enum to keep test
+///      assertions aligned with on-chain error definitions.
+///    - `frontend/src/utils/errors.ts` & `docs/CONTRACT_ERROR_MATRIX.md`: Update user-facing error messages
+///      and recovery suggestions if client UI workflows can trigger the error.
+///
+/// # Exceptions & Historical Quirks
+///
+/// Contributors should note the following intentional exceptions and historical quirks:
+/// - **Non-Sequential Placement**: Some legacy error constants were defined out of strict numeric order
+///   (for example, `MetadataNotSet = Self(80)` defined before multi-sig error `Self(72)`). The numeric
+///   discriminant itself is wire-pinned, regardless of source declaration order.
+/// - **Historical Discriminant Overlaps**: Early burn schedule errors (codes 83–85) share numerical
+///   values with storage migration and dividend errors. To preserve wire compatibility for existing
+///   callers, these historic discriminants are pinned as-is rather than shifted.
+/// - **Selective `name()` Coverage**: [`Error::name`] intentionally maps errors relevant to public
+///   entry-point failure event reporting (vaults, staking, dividends) rather than every internal error.
+///   Unknown error codes fall back to `"UnknownError"` to prevent breaking event parsing.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Error(pub u32);
 
