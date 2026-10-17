@@ -81,3 +81,4 @@ deployment-mainnet.json
 
 # Test artifacts (generated during test failures)
 test-artifacts/
+!frontend/docs/CONFIRM_DIALOG_FOCUS.md

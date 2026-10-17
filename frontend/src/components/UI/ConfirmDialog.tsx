@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from './Button';
 
 export type ConfirmDialogAction = 
@@ -48,6 +48,16 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
     const [explicitConfirm, setExplicitConfirm] = useState(false);
     const [isConfirming, setIsConfirming] = useState(false);
+    const panelRef = useRef<HTMLDivElement>(null);
+
+    // Move focus into the dialog when it opens so screen readers announce it
+    // and keyboard users aren't left on the (now inert) trigger behind the
+    // overlay. Focus is returned to the trigger by useConfirmDialog on close.
+    useEffect(() => {
+        if (isOpen) {
+            panelRef.current?.focus();
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         if (isOpen) {
@@ -167,7 +177,9 @@ export function ConfirmDialog({
             aria-describedby="confirm-dialog-description"
         >
             <div
-                className="relative bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden animate-slideUp"
+                ref={panelRef}
+                tabIndex={-1}
+                className="relative bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden animate-slideUp focus:outline-none"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header with Icon */}
