@@ -3,7 +3,7 @@ import { useTokenAnalytics } from '../hooks/useTokenAnalytics';
 import { TimeRangeSelector, type TimeRange, type TimeRangePreset } from '../components/TokenAnalytics/TimeRangeSelector';
 import { GranularityToggle, type Granularity } from '../components/TokenAnalytics/GranularityToggle';
 import { SupplyChart, BurnRateChart, ActivityFeed } from '../components/TokenAnalytics';
-import { Spinner } from '../components/UI/Spinner';
+import { Skeleton, SkeletonCard } from '../components/UI/Skeleton';
 import { Button } from '../components/UI/Button';
 import { truncateAddress, formatTokenSupply } from '../utils/formatting';
 
@@ -76,11 +76,13 @@ export default function TokenAnalyticsPage({ address }: Props) {
   if (loading && !stats) {
     return (
       <div
-        className="flex items-center justify-center min-h-screen"
+        className="mx-auto max-w-7xl space-y-8 px-4 py-8"
         role="status"
         aria-label="Loading analytics"
       >
-        <Spinner size="lg" />
+        <div className="space-y-2"><Skeleton width="14rem" height="2rem" /><Skeleton width="20rem" /></div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <SkeletonCard key={index} />)}</div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2"><Skeleton height="20rem" /><Skeleton height="20rem" /></div>
         <span className="sr-only">Loading analytics…</span>
       </div>
     );

@@ -31,7 +31,7 @@ function App({ compatibilityInfo }: { compatibilityInfo?: CompatibilityInfo }) {
   );
 
   const { network } = useNetwork();
-  const { wallet, connect, disconnect, isConnecting } = useWallet({ network });
+  const { wallet, connect, disconnect, isConnecting, isRestoring } = useWallet({ network });
 
   useEffect(() => {
     const handlePopState = () => {
@@ -145,6 +145,8 @@ function App({ compatibilityInfo }: { compatibilityInfo?: CompatibilityInfo }) {
 
     return <NotFoundRoute />;
   }, [pathname, wallet, connect, disconnect, isConnecting]);
+
+  if (isRestoring) return <PageLoader />;
 
   return (
     <ErrorBoundary>

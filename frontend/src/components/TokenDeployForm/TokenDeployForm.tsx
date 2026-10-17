@@ -13,6 +13,7 @@ import { analytics } from '../../services/analytics';
 import { Input } from '../UI/Input';
 import type { TokenTemplate } from '../../config/tokenTemplates';
 import { useErrorContext } from '../../providers/ErrorContextProvider';
+import { ACTIVE_NETWORK } from '../../config/stellar';
 
 interface TokenDeployFormProps {
     wallet: WalletState;
@@ -48,6 +49,7 @@ export function TokenDeployForm({
         useFactoryState({ network: wallet.network, pollingInterval: 30000 });
 
     const hasMetadataInput = Boolean(metadataDescription.trim() || metadataImage);
+    const hasNetworkMismatch = wallet.connected && wallet.network !== ACTIVE_NETWORK;
     const feeBreakdown = useMemo(
         () => getDeploymentFeeBreakdown(hasMetadataInput, baseFee, metadataFee),
         [hasMetadataInput, baseFee, metadataFee]
@@ -315,6 +317,12 @@ export function TokenDeployForm({
                 </div>
             ) : null}
 
+            {hasNetworkMismatch && (
+                <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800" role="alert">
+                    Wallet network is <strong>{wallet.network}</strong>, but Nova Launch is configured for <strong>{ACTIVE_NETWORK}</strong>. Switch networks before deploying.
+                </div>
+            )}
+
             <div className="space-y-4 rounded-lg border border-gray-200 p-4">
                 <h4 className="font-medium text-gray-900">Optional Metadata</h4>
                 <Input
@@ -404,9 +412,9 @@ export function TokenDeployForm({
                     loading={isDeploying}
                     loadingText={status === 'uploading' ? 'Uploading...' : 'Deploying...'}
                     className="w-full"
-                    disabled={!wallet.connected || isPaused || pauseLoading}
+                    disabled={!wallet.connected || isPaused || pauseLoading || hasNetworkMismatch}
                     data-tutorial="deploy-button"
-                    title={isPaused ? 'Protocol is paused for maintenance' : undefined}
+                    title={hasNetworkMismatch ? 'Switch the wallet to the app network' : isPaused ? 'Protocol is paused for maintenance' : undefined}
                 >
                     {isPaused ? 'Protocol Paused' : 'Deploy Token'}
                 </LoadingButton>

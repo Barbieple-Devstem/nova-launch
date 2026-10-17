@@ -58,6 +58,7 @@ export const useWallet = (options: UseWalletOptions = {}) => {
         network: externalNetwork,
     });
     const [isConnecting, setIsConnecting] = useState(false);
+    const [isRestoring, setIsRestoring] = useState(true);
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [networkMismatchWarning, setNetworkMismatchWarning] = useState<string | null>(null);
@@ -237,7 +238,10 @@ export const useWallet = (options: UseWalletOptions = {}) => {
         isInitializedRef.current = true;
 
         const wasConnected = localStorage.getItem(WALLET_CONNECTED_KEY) === 'true';
-        if (!wasConnected) return;
+        if (!wasConnected) {
+            setIsRestoring(false);
+            return;
+        }
 
         const persisted = loadPersistedWalletState();
         if (persisted) {
@@ -259,7 +263,7 @@ export const useWallet = (options: UseWalletOptions = {}) => {
             if (!success) {
                 clearWalletState();
             }
-        })();
+        })().finally(() => setIsRestoring(false));
     }, [updateWalletState]);
 
     return {
@@ -271,6 +275,7 @@ export const useWallet = (options: UseWalletOptions = {}) => {
         isSelectorOpen,
         disconnect,
         isConnecting,
+        isRestoring,
         error,
         networkMismatchWarning,
     };

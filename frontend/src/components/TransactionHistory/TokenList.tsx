@@ -38,6 +38,31 @@ export function TokenList({ wallet }: TokenListProps) {
 
   const [searchInput, setSearchInput] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const exportCsv = useCallback(() => {
+    setIsExporting(true);
+    requestAnimationFrame(() => {
+      const escape = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+      const rows = history.map((token) => [
+        new Date(token.deployedAt).toISOString(),
+        'token_deployment',
+        token.initialSupply ?? token.totalSupply,
+        token.symbol,
+        token.transactionHash ?? '',
+      ]);
+      const csv = [['date', 'type', 'amount', 'token', 'hash'], ...rows]
+        .map((row) => row.map(escape).join(','))
+        .join('\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `nova-history-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setIsExporting(false);
+    });
+  }, [history]);
 
   const handleSearch = useCallback(
     (e: React.FormEvent) => {
@@ -108,6 +133,9 @@ export function TokenList({ wallet }: TokenListProps) {
             )}
           </h2>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={exportCsv} loading={isExporting} disabled={history.length === 0}>
+              Export CSV
+            </Button>
             <Button
               variant="outline"
               size="sm"
