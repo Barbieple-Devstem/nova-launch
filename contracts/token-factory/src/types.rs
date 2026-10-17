@@ -1199,6 +1199,13 @@ pub struct MultiSigProposal {
     pub approval_count: u32,
 }
 
+/// Wire-stable contract error code.
+///
+/// Existing numeric assignments are immutable: add new constants with a previously unused code
+/// and never renumber or reuse a published value. When a new error can be emitted by vault
+/// entrypoints, update `backend/src/services/vaultEventParser.ts` (`VaultErrorCode`) and the
+/// `Error::name` mapping below in the same change. Other event-specific backend mappings must be
+/// audited whenever their corresponding entrypoint gains a new error.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Error(pub u32);
 

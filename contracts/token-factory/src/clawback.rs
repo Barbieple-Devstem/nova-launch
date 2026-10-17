@@ -11,6 +11,11 @@
 //! - Clawback succeeds even if the target address is frozen; freezing controls
 //!   voluntary transfers, not admin-initiated reclamation.
 //!
+//! Unlike holder-initiated [`crate::burn::burn`], this path is admin-authorized and deliberately
+//! bypasses holder freeze state. Both paths reduce supply and increment `total_burned` and
+//! `burn_count`; indexers distinguish them by the `clwbk_v1` versus burn event topic rather than
+//! by those aggregate counters.
+//!
 //! ## Events
 //! Emits a `clwbk_v1` event (see [`crate::events::emit_clawback`]) with
 //! `from`, `amount`, `admin`, and `timestamp` so indexers have a full audit

@@ -180,11 +180,17 @@ struct ProofPayload {
     oracle_id: Bytes,
 }
 
-/// Test-only verifier stub for development and testing
+/// Test-only verifier stub. It must never be constructed or wired into a production deployment.
+///
+/// Production verification is performed by [`OracleMilestoneVerifier`]; contract entrypoints
+/// persist verifier approval and never instantiate this stub. Keeping the type behind
+/// `cfg(test)` makes accidental production linkage impossible.
+#[cfg(test)]
 pub struct MilestoneVerifierStub {
     env: Env,
 }
 
+#[cfg(test)]
 impl MilestoneVerifierStub {
     /// Create a new verification stub instance
     pub fn new(env: &Env) -> Self {
@@ -223,6 +229,7 @@ impl MilestoneVerifier for OracleMilestoneVerifier {
     }
 }
 
+#[cfg(test)]
 impl MilestoneVerifier for MilestoneVerifierStub {
     fn verify_milestone(
         &self,
