@@ -10,6 +10,7 @@ interface QuorumProgressBarProps {
 }
 
 export function QuorumProgressBar({ votesFor, votesAgainst, quorum }: QuorumProgressBarProps) {
+    const { t } = useTranslation();
     const total = parseInt(votesFor) + parseInt(votesAgainst);
     const quorumTarget = parseInt(quorum);
     const percentage = quorumTarget > 0 ? Math.min((total / quorumTarget) * 100, 100) : 0;
@@ -18,7 +19,7 @@ export function QuorumProgressBar({ votesFor, votesAgainst, quorum }: QuorumProg
     return (
         <div data-testid="quorum-progress-bar">
             <div className="flex items-center justify-between text-sm mb-1">
-                <span className="text-gray-600 font-medium">Quorum Progress</span>
+                <span className="text-gray-600 font-medium">{t('governance.quorumProgress')}</span>
                 <span className={reached ? 'text-green-600 font-medium' : 'text-gray-500'}>
                     {total} / {quorum} {reached && '✓'}
                 </span>
@@ -35,3 +36,4 @@ export function QuorumProgressBar({ votesFor, votesAgainst, quorum }: QuorumProg
 }
 
 export default QuorumProgressBar;
+import { useTranslation } from 'react-i18next';

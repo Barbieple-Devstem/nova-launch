@@ -165,8 +165,8 @@ export function ImageUpload({
               <div className="relative">
                 <img
                   src={previewUrl}
-                  alt="Preview"
-                  className="max-w-full max-h-64 rounded-lg shadow-md"
+                  alt="Square-cropped token logo preview"
+                  className="h-48 w-48 rounded-lg object-cover shadow-md"
                 />
               </div>
             </div>
