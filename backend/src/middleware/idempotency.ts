@@ -2,6 +2,12 @@ import { Request, Response, NextFunction } from "express";
 import type Redis from "ioredis";
 import { BadRequestError } from "../lib/errors";
 
+/**
+ * General API-request idempotency keyed by a caller-provided `Idempotency-Key` header.
+ * Inbound provider webhook retries use `services/webhookDeduplication.ts` instead, because those
+ * deliveries have provider-owned event IDs and a distinct replay/retention lifecycle.
+ */
+
 export const IDEMPOTENCY_HEADER = "idempotency-key";
 
 /** Default window in which the same key returns the cached result. */

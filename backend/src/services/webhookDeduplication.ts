@@ -5,6 +5,11 @@
  * endpoint returns a non-2xx response. Each retry carries the same event ID,
  * so we must deduplicate on that ID to avoid processing the same event twice.
  *
+ * This is provider-event deduplication at the inbound webhook boundary. It is deliberately
+ * separate from `middleware/idempotency.ts`, which keys general client API requests by their
+ * `Idempotency-Key` header and caches HTTP responses. Provider event IDs, retention windows, and
+ * replay semantics differ from caller-selected request keys, so the stores are not interchangeable.
+ *
  * Strategy:
  *  - Maintain an in-memory LRU-style store keyed by event ID.
  *  - Each entry records the processing result and expires after `windowMs`.

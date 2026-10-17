@@ -5,6 +5,11 @@
 //! (fees non-negative, addresses valid, policy flags coherent),
 //! and rejects malformed payloads early.
 //!
+//! This module owns only governance action payload decoding and schema validation. General state
+//! invariants live in `validation`, while buyback campaign configuration is checked by
+//! `campaign_validation`. Keep future feature-specific validators separate unless their invariant
+//! is reusable across contract entrypoints, in which case it belongs in `validation`.
+//!
 //! Closes #423
 
 use crate::types::{ActionType, Error};
