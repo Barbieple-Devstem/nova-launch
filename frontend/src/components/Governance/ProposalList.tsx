@@ -11,6 +11,7 @@ import { Card } from '../UI/Card';
 import { Spinner } from '../UI/Spinner';
 import { Button } from '../UI/Button';
 import { truncateAddress } from '../../utils/formatting';
+import { useDebounce } from '../../hooks/useDebounce';
 import {
     fetchProposals,
     type ProposalParams,
@@ -37,10 +38,68 @@ const STATUS_OPTIONS: { value: ProposalStatus | ''; labelKey: string }[] = [
     { value: ProposalStatus.ACTIVE, labelKey: 'governance.statusFilter.active' },
     { value: ProposalStatus.PASSED, labelKey: 'governance.statusFilter.passed' },
     { value: ProposalStatus.REJECTED, labelKey: 'governance.statusFilter.rejected' },
+    { value: ProposalStatus.QUEUED, labelKey: 'governance.statusFilter.queued' },
     { value: ProposalStatus.EXECUTED, labelKey: 'governance.statusFilter.executed' },
     { value: ProposalStatus.CANCELLED, labelKey: 'governance.statusFilter.cancelled' },
     { value: ProposalStatus.EXPIRED, labelKey: 'governance.statusFilter.expired' },
 ];
+
+/** Debounce delay for the free-text search input, in ms */
+export const SEARCH_DEBOUNCE_MS = 300;
+
+/**
+ * URL query param slugs for each status. REJECTED is exposed as `failed`
+ * (the user-facing label), but `rejected` is still accepted when parsing.
+ */
+const STATUS_TO_SLUG: Record<ProposalStatus, string> = {
+    [ProposalStatus.ACTIVE]: 'active',
+    [ProposalStatus.PASSED]: 'passed',
+    [ProposalStatus.REJECTED]: 'failed',
+    [ProposalStatus.QUEUED]: 'queued',
+    [ProposalStatus.EXECUTED]: 'executed',
+    [ProposalStatus.CANCELLED]: 'cancelled',
+    [ProposalStatus.EXPIRED]: 'expired',
+};
+
+export function statusFromSlug(slug: string | null): ProposalStatus | '' {
+    if (!slug) return '';
+    const normalized = slug.toLowerCase();
+    if (normalized === 'rejected') return ProposalStatus.REJECTED;
+    const match = (Object.keys(STATUS_TO_SLUG) as ProposalStatus[]).find(
+        (status) => STATUS_TO_SLUG[status] === normalized,
+    );
+    return match ?? '';
+}
+
+function readFiltersFromUrl(): { search: string; status: ProposalStatus | '' } {
+    const params = new URLSearchParams(window.location.search);
+    return {
+        search: params.get('q') ?? '',
+        status: statusFromSlug(params.get('status')),
+    };
+}
+
+/**
+ * Reflect the current filters in the URL without adding history entries,
+ * so filtered views can be shared and survive a reload.
+ */
+function writeFiltersToUrl(search: string, status: ProposalStatus | ''): void {
+    const params = new URLSearchParams(window.location.search);
+    const trimmed = search.trim();
+
+    if (trimmed) params.set('q', trimmed);
+    else params.delete('q');
+
+    if (status) params.set('status', STATUS_TO_SLUG[status]);
+    else params.delete('status');
+
+    const query = params.toString();
+    const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextUrl !== currentUrl) {
+        window.history.replaceState(window.history.state, '', nextUrl);
+    }
+}
 
 /**
  * Get status badge color
@@ -53,6 +112,8 @@ function getStatusBadge(status: ProposalStatus): string {
             return 'bg-green-100 text-green-700';
         case ProposalStatus.REJECTED:
             return 'bg-red-100 text-red-700';
+        case ProposalStatus.QUEUED:
+            return 'bg-indigo-100 text-indigo-700';
         case ProposalStatus.EXECUTED:
             return 'bg-purple-100 text-purple-700';
         case ProposalStatus.CANCELLED:
@@ -99,7 +160,11 @@ export function ProposalList({
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [statusFilter, setStatusFilter] = useState<ProposalStatus | ''>(status || '');
+    const [statusFilter, setStatusFilter] = useState<ProposalStatus | ''>(
+        () => readFiltersFromUrl().status || status || '',
+    );
+    const [searchInput, setSearchInput] = useState(() => readFiltersFromUrl().search);
+    const debouncedSearch = useDebounce(searchInput.trim(), SEARCH_DEBOUNCE_MS);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const dateRangeRef = useRef({ startDate: '', endDate: '' });
@@ -109,6 +174,22 @@ export function ProposalList({
     useEffect(() => {
         dateRangeRef.current = { startDate, endDate };
     }, [startDate, endDate]);
+
+    // Keep the URL in sync with the active filters
+    useEffect(() => {
+        writeFiltersToUrl(debouncedSearch, statusFilter);
+    }, [debouncedSearch, statusFilter]);
+
+    // Restore filters when the user navigates back/forward
+    useEffect(() => {
+        const handlePopState = () => {
+            const filters = readFiltersFromUrl();
+            setSearchInput(filters.search);
+            setStatusFilter(filters.status);
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
 
     const clearDateFetchTimeout = useCallback(() => {
         if (dateFetchTimeoutRef.current !== null) {
@@ -136,6 +217,9 @@ export function ProposalList({
             if (statusFilter) {
                 params.status = statusFilter;
             }
+            if (debouncedSearch) {
+                params.search = debouncedSearch;
+            }
             if (creator) {
                 params.creator = creator;
             }
@@ -155,7 +239,7 @@ export function ProposalList({
         } finally {
             setLoading(false);
         }
-    }, [statusFilter, creator, limit, clearDateFetchTimeout]);
+    }, [statusFilter, debouncedSearch, creator, limit, clearDateFetchTimeout]);
 
     // Fetch on filter change
     useEffect(() => {
@@ -204,11 +288,40 @@ export function ProposalList({
         <Card className="p-4">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Governance Proposals</h2>
 
+            {/* Search */}
+            <div className="relative mb-4">
+                <label htmlFor="proposal-search" className="sr-only">
+                    {t('governance.search.label')}
+                </label>
+                <input
+                    id="proposal-search"
+                    type="search"
+                    data-testid="proposal-search"
+                    value={searchInput}
+                    onChange={(event) => setSearchInput(event.target.value)}
+                    placeholder={t('governance.search.placeholder')}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-9 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {searchInput && (
+                    <button
+                        type="button"
+                        data-testid="proposal-search-clear"
+                        onClick={() => setSearchInput('')}
+                        aria-label={t('governance.search.clear')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 px-1 text-gray-400 hover:text-gray-600"
+                    >
+                        ×
+                    </button>
+                )}
+            </div>
+
             {/* Status filter */}
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label="Filter by status">
                 {STATUS_OPTIONS.map((opt) => (
                     <button
                         key={opt.value}
+                        type="button"
+                        aria-pressed={statusFilter === opt.value}
                         data-testid={`status-filter-${opt.value ? opt.value.toLowerCase() : 'all'}`}
                         onClick={() => setStatusFilter(opt.value)}
                         className={`px-3 py-1 text-sm rounded-full transition-colors ${

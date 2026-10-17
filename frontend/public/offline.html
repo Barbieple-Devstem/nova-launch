@@ -120,6 +120,12 @@
         box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
       }
 
+      button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+        transform: none;
+      }
+
       .btn-secondary {
         background: white;
         color: #667eea;
@@ -211,61 +217,62 @@
       <h1>Connection Lost</h1>
 
       <p>
-        Don't worry! Nova Launch is designed to work offline. Here's what you
-        can still do:
+        Nova Launch couldn't load this page because you're offline. Deploying
+        tokens, voting, and other wallet actions need a network connection.
       </p>
 
       <ul>
-        <li>View previously loaded content</li>
-        <li>Prepare transactions offline</li>
-        <li>Review token configurations</li>
-        <li>Check stored wallet information</li>
+        <li>Pages you've already visited may still open from cache</li>
+        <li>This page will reload automatically when you're back online</li>
       </ul>
 
       <div class="button-group">
-        <button class="btn-primary" onclick="goHome()">Go to Home</button>
-        <button class="btn-secondary" onclick="retry()">
-          Retry Connection
+        <button class="btn-primary" id="retryButton" onclick="retry()">
+          Try Again
         </button>
+        <button class="btn-secondary" onclick="goHome()">Go to Home</button>
       </div>
 
-      <div class="status-indicator">
+      <div class="status-indicator" role="status" aria-live="polite">
         <span class="status-dot"></span>
         <span id="connectionStatus">Waiting for connection...</span>
       </div>
     </div>
 
     <script>
+      var statusEl = document.getElementById("connectionStatus");
+      var retryButton = document.getElementById("retryButton");
+
+      function setStatus(text) {
+        if (statusEl) statusEl.textContent = text;
+      }
+
       function goHome() {
         window.location.href = "/";
       }
 
+      // Reload only once the server is actually reachable. navigator.onLine can
+      // be true while the network or server is down, so redirecting on it alone
+      // would bounce straight back to this page.
       function retry() {
-        window.location.reload();
+        if (retryButton) retryButton.disabled = true;
+        setStatus("Checking connection...");
+        fetch("/manifest.json", { cache: "no-store" })
+          .then(function (response) {
+            if (!response.ok) throw new Error("Unavailable");
+            setStatus("Connection restored! Reloading...");
+            window.location.reload();
+          })
+          .catch(function () {
+            setStatus("Still offline. Try again in a moment.");
+            if (retryButton) retryButton.disabled = false;
+          });
       }
 
-      // Monitor connection status
-      window.addEventListener("online", () => {
-        const status = document.getElementById("connectionStatus");
-        if (status) {
-          status.textContent = "Connection restored!";
-          setTimeout(() => {
-            window.location.href = "/";
-          }, 1000);
-        }
+      window.addEventListener("online", retry);
+      window.addEventListener("offline", function () {
+        setStatus("No connection");
       });
-
-      window.addEventListener("offline", () => {
-        const status = document.getElementById("connectionStatus");
-        if (status) {
-          status.textContent = "No connection";
-        }
-      });
-
-      // Check initial connection status
-      if (navigator.onLine) {
-        goHome();
-      }
     </script>
   </body>
 </html>

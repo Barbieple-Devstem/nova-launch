@@ -1,4 +1,4 @@
-const CACHE_NAME = "nova-launch-v2";
+const CACHE_NAME = "nova-launch-v3";
 const OFFLINE_URL = "/offline.html";
 const ASSETS_TO_CACHE = ["/", "/index.html", "/offline.html", "/manifest.json", "/vite.svg"];
 

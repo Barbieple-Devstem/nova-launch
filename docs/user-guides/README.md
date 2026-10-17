@@ -43,6 +43,23 @@ Everything you need to know about setting up and using a Stellar wallet.
 
 ---
 
+### Using the App
+
+**[Governance Guide](GOVERNANCE.md)**  
+Finding proposals and understanding your voting power.
+
+**Topics covered:**
+- Searching and filtering proposals (shareable filter links)
+- How voting power is calculated, including delegation
+
+**[Transaction Fee Preview](TRANSACTION_FEES.md)**  
+What the fee and resource estimate shown before signing means.
+
+**[Offline Use and App Updates](OFFLINE_AND_UPDATES.md)**  
+How Nova Launch behaves offline and how app updates are applied.
+
+---
+
 ### Reference Documentation
 
 **[FAQ (Frequently Asked Questions)](FAQ.md)**  

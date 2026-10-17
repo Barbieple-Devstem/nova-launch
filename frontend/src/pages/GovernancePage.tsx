@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { ProposalList } from '../components/Governance/ProposalList';
 import { ProposalDetail } from '../components/Governance/ProposalDetail';
 import { CreateProposalForm } from '../components/Governance/CreateProposalForm';
+import { VotingPowerBreakdown } from '../components/Governance/VotingPowerBreakdown';
 import { Button } from '../components/UI/Button';
 import { useGovernance } from '../hooks/useGovernance';
 import type { GovernanceProposal, WalletState } from '../types';
@@ -25,7 +26,7 @@ export function GovernancePage({ wallet }: GovernancePageProps) {
   const [listKey, setListKey] = useState(0);
 
   // Use an empty string as placeholder; in production pass the real token address
-  const { checkGovernancePower } = useGovernance('');
+  const { checkGovernancePower, voterInfo, isLoadingVoterInfo } = useGovernance('');
 
   useEffect(() => {
     if (!wallet.connected) {
@@ -67,7 +68,7 @@ export function GovernancePage({ wallet }: GovernancePageProps) {
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 data-testid="governance-heading" className="text-2xl font-bold text-gray-900">
           {t('governance.title')}
         </h1>
@@ -77,6 +78,12 @@ export function GovernancePage({ wallet }: GovernancePageProps) {
           </Button>
         )}
       </div>
+
+      {wallet.connected && (
+        <div className="mb-4">
+          <VotingPowerBreakdown voterInfo={voterInfo} loading={isLoadingVoterInfo} />
+        </div>
+      )}
 
       <ProposalList
         key={listKey}

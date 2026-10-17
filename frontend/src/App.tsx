@@ -5,7 +5,8 @@ import { ErrorBoundary } from "./components/UI";
 import { PageLoader } from "./components/UI/PageLoader";
 import { DashboardLayout } from "./components/Layout";
 import { PerformanceDashboard } from "./components/PerformanceDashboard";
-import { PWAUpdateNotification } from "./components/PWA";
+import { PWAOfflineBanner, PWAUpdateNotification } from "./components/PWA";
+import { ResourceCostConfirmDialog } from "./components/ResourceCost";
 import { IntegrationVersionBanner } from "./components/IntegrationVersionBanner";
 import type { CompatibilityInfo } from "./components/IntegrationVersionBanner";
 import { LanguageSelector } from "./components/LanguageSelector";
@@ -162,8 +163,12 @@ function App({ compatibilityInfo }: { compatibilityInfo?: CompatibilityInfo }) {
         <LanguageSelector variant="inline" />
       </div>
 
-      {/* PWA Update Notification */}
+      {/* PWA Offline Banner and Update Notification */}
+      <PWAOfflineBanner />
       <PWAUpdateNotification />
+
+      {/* Fee/resource preview shown before any contract call is signed */}
+      <ResourceCostConfirmDialog />
 
       {/* Performance Dashboard (Dev only) */}
       <PerformanceDashboard />

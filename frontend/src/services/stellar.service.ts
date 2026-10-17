@@ -21,7 +21,8 @@ import { FACTORY_METHODS } from '../contracts/factoryAbi';
 import { mappers } from '../contracts/mappers';
 import { WalletService } from './wallet';
 import type { ProposalParams, VoteParams } from '../types/governance';
-import { decodeSimulationError } from './stellarErrors';
+import { estimateResourceCost } from './resourceCost';
+import { requestCostConfirmation } from './costConfirmation';
 import { SequenceNumberCache } from './sequenceNumberCache';
 
 export interface TransactionDetails {
@@ -304,21 +305,28 @@ export class StellarService {
   }
 
   /**
-   * Simulate a transaction before wallet signing.
-   * Throws a user-friendly AppError if simulation fails, so the wallet prompt is never shown.
+   * Simulate a transaction before wallet signing and show the estimated
+   * fee/resource cost for the user to confirm.
+   * @param action - Human-readable label for the call, shown in the preview
+   * Throws a user-friendly AppError if simulation fails or the user declines,
+   * so the wallet prompt is never shown.
    */
-  private async simulateBeforeSigning(tx: Transaction): Promise<void> {
-    const sim = await this.server.simulateTransaction(tx);
-    if (Soroban.Api.isSimulationError(sim)) {
-      const decoded = decodeSimulationError(sim);
+  private async simulateBeforeSigning(tx: Transaction, action: string): Promise<void> {
+    const result = await estimateResourceCost(this.server, tx);
+    if (!result.ok) {
       const err: AppError = {
-        code: decoded.code,
-        message: decoded.userMessage,
-        details: decoded.retrySuggestion,
+        code: result.error.code,
+        message: result.error.message,
+        details: result.error.suggestion,
       };
       // Attach debug detail without leaking it into the user-facing message
-      (err as any).debugDetail = decoded.debugDetail;
+      (err as any).debugDetail = result.error.debugDetail;
       throw err;
+    }
+
+    const confirmed = await requestCostConfirmation({ action, estimate: result.estimate });
+    if (!confirmed) {
+      throw this.createError(ErrorCode.WALLET_REJECTED, 'Transaction cancelled before signing');
     }
   }
 
@@ -402,7 +410,7 @@ export class StellarService {
         .build();
 
       const prepared = await this.server.prepareTransaction(tx);
-      await this.simulateBeforeSigning(prepared as Transaction);
+      await this.simulateBeforeSigning(prepared as Transaction, 'Deploy token');
       const signedXdr = await this.signWithWallet(prepared.toXDR());
       const signedTx = TransactionBuilder.fromXDR(signedXdr, this.networkPassphrase) as Transaction;
 
@@ -537,7 +545,7 @@ export class StellarService {
         .build();
 
       const prepared = await this.server.prepareTransaction(tx);
-      await this.simulateBeforeSigning(prepared as Transaction);
+      await this.simulateBeforeSigning(prepared as Transaction, 'Burn tokens');
       const signedXdr = await this.signWithWallet(prepared.toXDR());
       const signedTx = TransactionBuilder.fromXDR(signedXdr, this.networkPassphrase) as Transaction;
       
@@ -582,7 +590,7 @@ export class StellarService {
         .build();
 
       const prepared = await this.server.prepareTransaction(tx);
-      await this.simulateBeforeSigning(prepared as Transaction);
+      await this.simulateBeforeSigning(prepared as Transaction, 'Create proposal');
       const signedXdr = await this.signWithWallet(prepared.toXDR());
       const signedTx = TransactionBuilder.fromXDR(signedXdr, this.networkPassphrase) as Transaction;
       
@@ -620,7 +628,7 @@ export class StellarService {
         .build();
 
       const prepared = await this.server.prepareTransaction(tx);
-      await this.simulateBeforeSigning(prepared as Transaction);
+      await this.simulateBeforeSigning(prepared as Transaction, 'Vote on proposal');
       const signedXdr = await this.signWithWallet(prepared.toXDR());
       const signedTx = TransactionBuilder.fromXDR(signedXdr, this.networkPassphrase) as Transaction;
       
@@ -663,6 +671,7 @@ export class StellarService {
         .build();
 
       const prepared = await this.server.prepareTransaction(tx);
+      await this.simulateBeforeSigning(prepared as Transaction, method.replace(/_/g, ' '));
       const signedXdr = await this.signWithWallet(prepared.toXDR());
       const signedTx = TransactionBuilder.fromXDR(signedXdr, this.networkPassphrase) as Transaction;
       

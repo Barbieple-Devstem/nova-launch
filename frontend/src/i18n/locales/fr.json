@@ -142,11 +142,17 @@
   },
   "governance": {
     "title": "Gouvernance",
+    "search": {
+      "label": "Rechercher des propositions",
+      "placeholder": "Rechercher par titre ou description",
+      "clear": "Effacer la recherche"
+    },
     "statusFilter": {
       "all": "Toutes",
       "active": "Actives",
       "passed": "Adoptées",
       "rejected": "Rejetées",
+      "queued": "En file d'attente",
       "executed": "Exécutées",
       "cancelled": "Annulées",
       "expired": "Expirées"
