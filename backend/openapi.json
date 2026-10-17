@@ -568,12 +568,20 @@
             }
           },
           {
+            "name": "cursor",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Opaque keyset cursor from a previous response's `pagination.nextCursor`. Only supported when sortBy=created; takes precedence over `page`."
+          },
+          {
             "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
               "default": 1
-            }
+            },
+            "deprecated": true,
+            "description": "Offset-based page number. Deprecated in favor of `cursor` — inconsistent results may occur when new tokens are deployed between page fetches."
           },
           {
             "name": "limit",
@@ -587,7 +595,13 @@
         ],
         "responses": {
           "200": {
-            "description": "Token search results",
+            "description": "Token search results. Prefer cursor pagination: pass `pagination.nextCursor` back as `cursor` until it is null. Requests that send `page` (without `cursor`) receive deprecation headers.",
+            "headers": {
+              "Deprecation": { "description": "`true` when the deprecated `page` parameter was used.", "schema": { "type": "string" } },
+              "Sunset": { "description": "Date after which offset (`page`) pagination may be removed.", "schema": { "type": "string" } },
+              "Link": { "description": "Link to the successor (`cursor`) documentation, rel=\"deprecation\".", "schema": { "type": "string" } },
+              "Warning": { "description": "299 warning describing the deprecation.", "schema": { "type": "string" } }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -614,7 +628,7 @@
             }
           },
           "400": {
-            "description": "Invalid parameters",
+            "description": "Invalid parameters, malformed `cursor`, or `cursor` combined with a sortBy other than `created`",
             "content": {
               "application/json": {
                 "schema": {

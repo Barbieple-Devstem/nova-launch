@@ -82,3 +82,4 @@ deployment-mainnet.json
 # Test artifacts (generated during test failures)
 test-artifacts/
 !frontend/docs/CONFIRM_DIALOG_FOCUS.md
+!backend/docs/OPENAPI_CONTRACT_TESTS.md
