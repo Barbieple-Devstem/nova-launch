@@ -26,6 +26,23 @@
   --font-heading: 'Asimovian', Georgia, 'Times New Roman', serif;
 }
 
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-background-dark: #F7F8FA;
+  --color-background-elevated: #FFFFFF;
+  --color-background-card: #F0F2F5;
+  --color-border-subtle: rgba(15, 23, 42, 0.08);
+  --color-border-medium: rgba(15, 23, 42, 0.16);
+  --color-text-primary: #111827;
+  --color-text-secondary: rgba(17, 24, 39, 0.72);
+  --color-text-muted: rgba(17, 24, 39, 0.55);
+  --color-glow-red: rgba(255, 59, 46, 0.18);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
 html {
   scroll-behavior: smooth;
 }

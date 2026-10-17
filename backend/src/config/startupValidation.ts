@@ -7,6 +7,10 @@
  * Call validateEnvVars() first (fail-fast on missing/malformed vars), then
  * runStartupValidation() after validateEnv() and before app.listen().
  *
+ * This module's schemas are the authoritative deployment-time list of required variables.
+ * `env.ts` subsequently parses those values into the typed runtime `BackendEnv` and applies safe
+ * development defaults; live reachability checks belong here and run only after parsing succeeds.
+ *
  * Validation rules:
  *  1. All required vars must be present and non-empty.
  *  2. TWILIO_ACCOUNT_SID must start with "AC".

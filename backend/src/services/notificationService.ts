@@ -444,6 +444,13 @@ export class NotificationService {
   private readonly sendGridBreaker: CircuitBreaker;
   private readonly twilioBreaker: CircuitBreaker;
 
+  /**
+   * SendGrid and Twilio keep provider-specific breakers because their credentials, quotas, and
+   * failure domains are independent. They do not use `OutboundHttpClient`, whose breaker is keyed
+   * for shared generic destinations; combining them would let one provider outage suppress the
+   * other. Webhook delivery likewise owns a separate per-service breaker for arbitrary tenant
+   * destinations. Every breaker is still registered in the shared observability registry.
+   */
   constructor() {
     this.registerChannel("WEBHOOK", this.sendWebhookNotification.bind(this));
     this.registerChannel("EMAIL", this.sendEmailNotification.bind(this));
