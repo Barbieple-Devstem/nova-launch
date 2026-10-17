@@ -239,7 +239,7 @@ describe("GET /api/tokens/search", () => {
 
     expect(prisma.token.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       })
     );
   });
@@ -379,7 +379,7 @@ describe("GET /api/tokens/search", () => {
                 { createdAt: { lt: new Date("2024-01-01T00:00:00.000Z") } },
                 {
                   createdAt: new Date("2024-01-01T00:00:00.000Z"),
-                  id: { gt: "1" },
+                  id: { lt: "1" },
                 },
               ],
             },

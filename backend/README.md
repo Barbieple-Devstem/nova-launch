@@ -287,6 +287,37 @@ Returns voting statistics for a specific address.
 
 ---
 
+### Token Search API
+
+#### GET /api/tokens/search
+
+Lists the requesting tenant's tokens with filters (`q`, `startDate`, `endDate`, `minSupply`, `maxSupply`, `hasBurns`) and sorting (`sortBy` = `created` | `burned` | `supply` | `name`, `sortOrder` = `asc` | `desc`). Requires an `X-Tenant-ID` header or a JWT tenant claim.
+
+**Cursor pagination (recommended).** Supported when `sortBy=created`, which is the default.
+
+```bash
+# First page
+curl -H "X-Tenant-ID: $TENANT" "/api/tokens/search?limit=20"
+# Next page: send back pagination.nextCursor until it is null
+curl -H "X-Tenant-ID: $TENANT" "/api/tokens/search?limit=20&cursor=$NEXT_CURSOR"
+```
+
+The response's `pagination` object includes `nextCursor` (string or `null`) and `hasMore`. The cursor is an opaque keyset over `(createdAt, id)`. Pages stay consistent while new tokens are deployed: rows are never skipped or duplicated. The `Token(creator, createdAt, id)` composite index backs this query.
+
+- Sending `cursor` with any `sortBy` other than `created` returns **400**.
+- A malformed `cursor` returns **400** `Invalid cursor parameter`.
+
+**Offset pagination (deprecated).** `page` still works for backward compatibility, and for the non-`created` sorts. Any request that sends `page` without `cursor` gets these headers:
+
+```
+Deprecation: true
+Sunset: Wed, 01 Apr 2027 00:00:00 GMT
+Link: </api/docs#/Tokens/get_api_tokens_search>; rel="deprecation"; type="text/html"
+Warning: 299 - "The `page` query parameter is deprecated; use `cursor` with `pagination.nextCursor` instead"
+```
+
+`page`, `totalPages`, `hasNext` and `hasPrev` are still returned but are deprecated in favor of `nextCursor` and `hasMore`.
+
 ### Token Leaderboard API
 
 Public endpoints for token rankings and leaderboards. No authentication required.

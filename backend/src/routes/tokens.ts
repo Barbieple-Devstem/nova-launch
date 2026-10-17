@@ -43,6 +43,26 @@ const searchParamsSchema = z.object({
 const CACHE_TTL = 60 * 1000; // 1 minute
 const cache = new Map<string, { data: any; timestamp: number }>();
 
+/**
+ * Deprecation notice for the offset `page` parameter (RFC 9745 `Deprecation`,
+ * RFC 8594 `Sunset`, plus a `Link` to the successor mechanism). Sent alongside
+ * a 299 `Warning` for clients that only surface warnings.
+ */
+export const OFFSET_PAGINATION_SUNSET = "Wed, 01 Apr 2027 00:00:00 GMT";
+
+function setOffsetDeprecationHeaders(res: Response) {
+  res.setHeader("Deprecation", "true");
+  res.setHeader("Sunset", OFFSET_PAGINATION_SUNSET);
+  res.setHeader(
+    "Link",
+    '</api/docs#/Tokens/get_api_tokens_search>; rel="deprecation"; type="text/html"'
+  );
+  res.setHeader(
+    "Warning",
+    '299 - "The `page` query parameter is deprecated; use `cursor` with `pagination.nextCursor` instead"'
+  );
+}
+
 function getCacheKey(params: Record<string, any>): string {
   return JSON.stringify(params);
 }
@@ -91,6 +111,12 @@ router.get("/search", async (req: TenantRequest & Request, res: Response) => {
     }
 
     const params = validationResult.data;
+
+    // Offset pagination is deprecated — signal it on every request that
+    // explicitly pages by offset so clients can migrate to `cursor`.
+    if (req.query.page !== undefined && !params.cursor) {
+      setOffsetDeprecationHeaders(res);
+    }
 
     // Cache key includes tenantId so tenants never share cached slices
     const cacheKey = getCacheKey({ ...params, tenantId });
@@ -173,22 +199,17 @@ router.get("/search", async (req: TenantRequest & Request, res: Response) => {
         });
       }
 
+      // `id` follows the same direction as `createdAt` so the whole tuple is
+      // walked in one direction and the (creator, createdAt, id) index can
+      // serve both orders (forward or backward scan).
       const cursorTime = new Date(decodedCursor.createdAt);
-      andConditions.push(
-        params.sortOrder === "asc"
-          ? {
-              OR: [
-                { createdAt: { gt: cursorTime } },
-                { createdAt: cursorTime, id: { gt: decodedCursor.id } },
-              ],
-            }
-          : {
-              OR: [
-                { createdAt: { lt: cursorTime } },
-                { createdAt: cursorTime, id: { gt: decodedCursor.id } },
-              ],
-            }
-      );
+      const op = params.sortOrder === "asc" ? "gt" : "lt";
+      andConditions.push({
+        OR: [
+          { createdAt: { [op]: cursorTime } },
+          { createdAt: cursorTime, id: { [op]: decodedCursor.id } },
+        ],
+      });
     }
 
     const where: Prisma.TokenWhereInput = { AND: andConditions };
@@ -197,10 +218,11 @@ router.get("/search", async (req: TenantRequest & Request, res: Response) => {
     const countWhere: Prisma.TokenWhereInput = { AND: baseConditions };
 
     // Build orderBy clause. `created` always includes `id` as a tie-breaker
-    // so the keyset cursor above has a stable, total order to walk.
+    // so the keyset cursor above has a stable, total order to walk. Backed by
+    // the `Token(creator, createdAt, id)` composite index.
     const orderBy: Prisma.TokenOrderByWithRelationInput[] =
       params.sortBy === "created"
-        ? [{ createdAt: params.sortOrder }, { id: "asc" }]
+        ? [{ createdAt: params.sortOrder }, { id: params.sortOrder }]
         : params.sortBy === "burned"
         ? [{ totalBurned: params.sortOrder }]
         : params.sortBy === "supply"

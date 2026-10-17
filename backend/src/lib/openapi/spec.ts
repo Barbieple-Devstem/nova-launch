@@ -322,7 +322,13 @@ const paths: OpenAPIObject["paths"] = {
       ],
       responses: {
         "200": {
-          description: "Token search results",
+          description: "Token search results. Prefer cursor pagination: pass `pagination.nextCursor` back as `cursor` until it is null. Requests that send `page` (without `cursor`) receive deprecation headers.",
+          headers: {
+            Deprecation: { description: "`true` when the deprecated `page` parameter was used.", schema: { type: "string" } },
+            Sunset: { description: "Date after which offset (`page`) pagination may be removed.", schema: { type: "string" } },
+            Link: { description: "Link to the successor (`cursor`) documentation, rel=\"deprecation\".", schema: { type: "string" } },
+            Warning: { description: "299 warning describing the deprecation.", schema: { type: "string" } },
+          },
           content: {
             "application/json": {
               schema: {
@@ -337,7 +343,7 @@ const paths: OpenAPIObject["paths"] = {
             },
           },
         },
-        "400": { description: "Invalid parameters", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        "400": { description: "Invalid parameters, malformed `cursor`, or `cursor` combined with a sortBy other than `created`", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
       },
     },
   },

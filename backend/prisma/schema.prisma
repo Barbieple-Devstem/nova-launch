@@ -53,6 +53,8 @@ model Token {
   @@index([name])
   @@index([symbol])
   @@index([isPublic, createdAt])
+  // Keyset pagination for GET /api/tokens/search (tenant scope + createdAt/id order)
+  @@index([creator, createdAt, id])
   @@index([category])
   @@index([network])
 }
