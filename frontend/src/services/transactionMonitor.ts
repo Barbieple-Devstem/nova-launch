@@ -243,6 +243,9 @@ export class TransactionMonitor {
         try {
             const status = await this.checkTransactionStatus(transactionHash);
 
+            // Stopped or restarted while the request was in flight.
+            if (this.sessions.get(transactionHash) !== session) return;
+
             if (status === 'success' || status === 'failed') {
                 this.updateSession(transactionHash, status);
                 this.emitStatus(transactionHash, status);
@@ -257,6 +260,8 @@ export class TransactionMonitor {
                 this.pollTimers.set(transactionHash, timer);
             }
         } catch (error) {
+            if (this.sessions.get(transactionHash) !== session) return;
+
             const err = error instanceof Error ? error : new Error(String(error));
             
             // Check if error is retryable

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { IPFSService } from '../services/IPFSService';
 
 interface UseIPFSUploadReturn {
@@ -16,11 +16,22 @@ export function useIPFSUpload(): UseIPFSUploadReturn {
     const [estimatedTimeMs, setEstimatedTimeMs] = useState<number | undefined>();
     const [error, setError] = useState<string | null>(null);
 
+    // Aborted on unmount so an in-flight upload stops updating state and never
+    // starts the metadata step for a component that is gone.
+    const abortRef = useRef<AbortController | null>(null);
+    useEffect(() => () => abortRef.current?.abort(), []);
+
     const upload = useCallback(async (
         image: File,
         description: string,
         tokenName: string
     ): Promise<string> => {
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const { signal } = controller;
+        const abortError = () => new DOMException('IPFS upload aborted', 'AbortError');
+
         setUploading(true);
         setProgress(0);
         setError(null);
@@ -39,6 +50,10 @@ export function useIPFSUpload(): UseIPFSUploadReturn {
             setEstimatedTimeMs(estimatedMs);
 
             const progressInterval = setInterval(() => {
+                if (signal.aborted) {
+                    clearInterval(progressInterval);
+                    return;
+                }
                 setProgress(prev => {
                     if (prev < 45) return prev + 5;
                     return prev;
@@ -57,17 +72,22 @@ export function useIPFSUpload(): UseIPFSUploadReturn {
             }
             
             clearInterval(progressInterval);
+            if (signal.aborted) throw abortError();
             setProgress(50);
 
             // Upload metadata (50-100%)
             setProgress(60);
             const metadataUri = await ipfsService.uploadMetadata(image, description, tokenName);
-            
+            if (signal.aborted) throw abortError();
+
             setProgress(100);
             setEstimatedTimeMs(0);
             
             return metadataUri;
         } catch (err) {
+            if (signal.aborted) {
+                throw err instanceof DOMException && err.name === 'AbortError' ? err : abortError();
+            }
             let message = 'IPFS upload failed';
             if (err instanceof Error) {
                 if (err.name === 'TimeoutError' || err.message.includes('timeout')) {
@@ -79,7 +99,7 @@ export function useIPFSUpload(): UseIPFSUploadReturn {
             setError(message);
             throw new Error(message); // Re-throw with descriptive message
         } finally {
-            setUploading(false);
+            if (!signal.aborted) setUploading(false);
         }
     }, []);
 

@@ -2,6 +2,16 @@
 
 ---
 
+## Frontend Deploy-Flow Testing
+
+- **[FRONTEND_DEPLOY_FLOW_TESTING.md](./FRONTEND_DEPLOY_FLOW_TESTING.md)**
+  - `useIPFSUpload` failure, retry (via `useRetry`) and abort-on-unmount tests
+  - `useTransactionMonitor` polling, backoff, timeout and cleanup tests
+  - `TokenDeployForm` validation boundaries and aria attributes
+  - Plan and blockers for the Playwright deploy E2E (#2174)
+
+---
+
 ## Database Backup & Point-in-Time Recovery
 
 - **[DATABASE_BACKUP_PITR.md](./DATABASE_BACKUP_PITR.md)**
