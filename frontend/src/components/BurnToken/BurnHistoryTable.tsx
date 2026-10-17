@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { getTxUrl } from "../../utils/explorer";
+import { AddressDisplay } from "../UI/AddressDisplay";
 
 type BurnRecord = {
   id: string;
@@ -18,12 +19,6 @@ type Props = {
 };
 
 const PAGE_SIZE = 10;
-
-function truncate(addr: string) {
-  if (!addr) return "";
-  if (addr.length <= 12) return addr;
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
 
 function formatDate(iso: string) {
   try {
@@ -188,8 +183,8 @@ export default function BurnHistoryTable({ records, loading, network = 'testnet'
               {pageItems.map((r) => (
                 <tr key={r.id}>
                   <td style={styles.td}>{formatDate(r.date)}</td>
-                  <td style={styles.td} title={r.from}>
-                    {truncate(r.from)}
+                  <td style={styles.td}>
+                    <AddressDisplay address={r.from} />
                   </td>
                   <td style={styles.td}>
                     {formatAmount(r.amount)} {r.symbol}
@@ -234,7 +229,7 @@ export default function BurnHistoryTable({ records, loading, network = 'testnet'
                 </div>
               </div>
               <div style={{ marginTop: 8 }}>{formatDate(r.date)}</div>
-              <div style={{ marginTop: 6 }}>{truncate(r.from)}</div>
+              <div style={{ marginTop: 6 }}><AddressDisplay address={r.from} /></div>
               <div style={{ marginTop: 8 }}>
                 {r.txHash ? (
                   <a href={explorerLink(r.txHash)} target="_blank" rel="noreferrer">

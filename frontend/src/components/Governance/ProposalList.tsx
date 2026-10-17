@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '../UI/Card';
 import { Spinner } from '../UI/Spinner';
 import { Button } from '../UI/Button';
-import { truncateAddress } from '../../utils/formatting';
+import { AddressDisplay } from '../UI/AddressDisplay';
 import {
     fetchProposals,
     type ProposalParams,
@@ -302,7 +302,7 @@ export function ProposalList({
                                 <div className="flex items-center justify-between text-sm text-gray-500 mt-3">
                                     <div className="flex items-center gap-4">
                                         <span>
-                                            By: {truncateAddress(proposal.creator)}
+                                            By: <AddressDisplay address={proposal.creator} />
                                         </span>
                                         <span>
                                             Votes: {proposal.voteCount}

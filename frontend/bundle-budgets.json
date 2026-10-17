@@ -1,0 +1,15 @@
+{
+  "$comment": "Gzipped size budgets in KB for the production build. Checked by `npm run size:check` after `npm run build`. See docs/BUNDLE_BUDGETS.md before changing.",
+  "chunks": {
+    "index": 90,
+    "react-vendor": 70,
+    "vendor": 150,
+    "stellar-sdk": 300,
+    "i18n": 30,
+    "charts": 130,
+    "landing": 40
+  },
+  "anyOtherChunk": 60,
+  "totalJs": 900,
+  "totalCss": 40
+}

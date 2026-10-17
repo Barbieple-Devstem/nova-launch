@@ -11,6 +11,10 @@ import { initPerformanceMonitoring } from "./utils/performance";
 import { getBootErrors } from "./config/env";
 import { ToastProvider } from "./providers/ToastProvider";
 import type { CompatibilityInfo } from "./components/IntegrationVersionBanner";
+import { applyTheme } from "./services/preferences";
+
+// Apply the saved theme before the first paint to avoid a flash.
+applyTheme();
 
 if (import.meta.env.PROD) {
   initPWA().catch((error) => {

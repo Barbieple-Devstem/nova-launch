@@ -1063,6 +1063,10 @@ npm run monitor
 
 To enable the New Relic export path, set `NEW_RELIC_ACCOUNT_ID` and `NEW_RELIC_INSERT_KEY` before running the command. Optional overrides include `NEW_RELIC_INSIGHTS_URL`, `NEW_RELIC_APP_NAME`, and `NEW_RELIC_SOURCE`.
 
+Per-chunk gzipped size budgets are enforced with `npm run build && npm run size:check`. See [docs/BUNDLE_BUDGETS.md](docs/BUNDLE_BUDGETS.md) for how to update budgets and for the lazy-loading conventions for routes and charts.
+
+User preferences (`/settings`), the theme toggle, and the shared `AddressDisplay` component are documented in [docs/FRONTEND_SETTINGS_AND_ADDRESSES.md](docs/FRONTEND_SETTINGS_AND_ADDRESSES.md).
+
 ### Test Modes
 
 | Mode        | Duration  | Tests               | Use Case              |

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card } from '../UI/Card';
 import { Button } from '../UI/Button';
+import { AddressDisplay } from '../UI/AddressDisplay';
 import {
-    truncateAddress,
     formatTokenSupply,
     formatBurnStats,
 } from '../../utils/formatting';
@@ -29,7 +29,6 @@ interface TokenCardProps {
 }
 
 export function TokenCard({ token, network, fetchEnrichedData = true, onDetailLoaded }: TokenCardProps) {
-    const [copied, setCopied] = useState(false);
     const [enrichedData, setEnrichedData] = useState<TokenDetail | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -94,12 +93,6 @@ export function TokenCard({ token, network, fetchEnrichedData = true, onDetailLo
     const txUrl = token.transactionHash
         ? getTxUrl(token.transactionHash, network)
         : null;
-
-    const handleCopy = async () => {
-        await navigator.clipboard.writeText(token.address);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
 
     const deployDate = new Date(token.deployedAt).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -197,16 +190,12 @@ export function TokenCard({ token, network, fetchEnrichedData = true, onDetailLo
                     <div className="flex items-center justify-between">
                         <span className="text-gray-600">Address:</span>
                         <div className="flex items-center gap-2">
-                            <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                                {truncateAddress(token.address)}
-                            </code>
-                            <button
-                                onClick={handleCopy}
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Copy address"
-                            >
-                                {copied ? '✓' : '📋'}
-                            </button>
+                            <AddressDisplay
+                                address={token.address}
+                                network={network}
+                                type="contract"
+                                className="text-xs bg-gray-100 px-2 py-1 rounded"
+                            />
                         </div>
                     </div>
 

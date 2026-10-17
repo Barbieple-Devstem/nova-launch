@@ -1,6 +1,6 @@
 import { Card } from '../UI/Card';
 import type { BurnRecord } from '../../services/tokenAnalyticsApi';
-import { truncateAddress } from '../../utils/formatting';
+import { AddressDisplay } from '../UI/AddressDisplay';
 
 interface ActivityFeedProps {
   records: BurnRecord[];
@@ -33,9 +33,7 @@ export function ActivityFeed({ records, symbol = 'TOKEN', decimals = 7 }: Activi
           {recent.map((rec) => (
             <li key={rec.id} className="py-2 flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <span className="font-mono text-gray-700 truncate block">
-                  {truncateAddress(rec.from)}
-                </span>
+                <AddressDisplay address={rec.from} className="text-gray-700" />
                 <time
                   className="text-xs text-gray-400"
                   dateTime={new Date(rec.timestamp * 1000).toISOString()}

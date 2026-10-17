@@ -4,11 +4,11 @@ import { useWallet } from "./hooks/useWallet";
 import { ErrorBoundary } from "./components/UI";
 import { PageLoader } from "./components/UI/PageLoader";
 import { DashboardLayout } from "./components/Layout";
-import { PerformanceDashboard } from "./components/PerformanceDashboard";
 import { PWAUpdateNotification } from "./components/PWA";
 import { IntegrationVersionBanner } from "./components/IntegrationVersionBanner";
 import type { CompatibilityInfo } from "./components/IntegrationVersionBanner";
 import { LanguageSelector } from "./components/LanguageSelector";
+import { ThemeToggle } from "./components/UI/ThemeToggle";
 
 // Lazy load pages
 const LandingPage = lazy(() => import("./pages/LandingPage"));
@@ -17,6 +17,19 @@ const RecurringPayments = lazy(() => import("./app/dashboard/RecurringPayments")
 const CampaignDashboard = lazy(() => import("./app/dashboard/CampaignDashboard"));
 const GovernancePage = lazy(() => import("./pages/GovernancePage"));
 const StreamDashboard = lazy(() => import("./components/Streams/StreamDashboard"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+// Analytics pulls in recharts; keep it (and the chart chunk) off the initial load.
+const TokenAnalyticsPage = lazy(() => import("./pages/TokenAnalyticsPage"));
+// Dev-only tooling: never part of the production entry chunk.
+const PerformanceDashboard = import.meta.env.DEV
+  ? lazy(() =>
+      import("./components/PerformanceDashboard").then((m) => ({
+        default: m.PerformanceDashboard,
+      }))
+    )
+  : null;
+
+const ANALYTICS_ROUTE = /^\/analytics\/([A-Za-z0-9]+)$/;
 
 function normalizePath(pathname: string): string {
   if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -30,7 +43,7 @@ function App({ compatibilityInfo }: { compatibilityInfo?: CompatibilityInfo }) {
     normalizePath(window.location.pathname)
   );
 
-  const { network } = useNetwork();
+  const { network, setNetwork } = useNetwork();
   const { wallet, connect, disconnect, isConnecting } = useWallet({ network });
 
   useEffect(() => {
@@ -132,6 +145,35 @@ function App({ compatibilityInfo }: { compatibilityInfo?: CompatibilityInfo }) {
       );
     }
 
+    if (pathname === "/settings") {
+      return (
+        <DashboardLayout
+          wallet={wallet}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          isConnecting={isConnecting}
+          currentPath={pathname}
+        >
+          <SettingsPage network={network} onNetworkChange={setNetwork} />
+        </DashboardLayout>
+      );
+    }
+
+    const analyticsMatch = ANALYTICS_ROUTE.exec(pathname);
+    if (analyticsMatch) {
+      return (
+        <DashboardLayout
+          wallet={wallet}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          isConnecting={isConnecting}
+          currentPath={pathname}
+        >
+          <TokenAnalyticsPage address={analyticsMatch[1]} />
+        </DashboardLayout>
+      );
+    }
+
     if (pathname === "/" || pathname === "/deploy") {
       return (
         <LandingPage
@@ -144,7 +186,7 @@ function App({ compatibilityInfo }: { compatibilityInfo?: CompatibilityInfo }) {
     }
 
     return <NotFoundRoute />;
-  }, [pathname, wallet, connect, disconnect, isConnecting]);
+  }, [pathname, wallet, connect, disconnect, isConnecting, network, setNetwork]);
 
   return (
     <ErrorBoundary>
@@ -157,8 +199,9 @@ function App({ compatibilityInfo }: { compatibilityInfo?: CompatibilityInfo }) {
         </div>
       </Suspense>
 
-      {/* Language Selector */}
-      <div className="fixed top-4 right-4 z-50">
+      {/* Language Selector + Theme Toggle */}
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+        <ThemeToggle />
         <LanguageSelector variant="inline" />
       </div>
 
@@ -166,7 +209,11 @@ function App({ compatibilityInfo }: { compatibilityInfo?: CompatibilityInfo }) {
       <PWAUpdateNotification />
 
       {/* Performance Dashboard (Dev only) */}
-      <PerformanceDashboard />
+      {PerformanceDashboard && (
+        <Suspense fallback={null}>
+          <PerformanceDashboard />
+        </Suspense>
+      )}
     </ErrorBoundary>
   );
 }

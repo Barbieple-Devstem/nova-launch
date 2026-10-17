@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from '../UI/Card';
 import { Spinner } from '../UI/Spinner';
 import { Button } from '../UI/Button';
-import { truncateAddress } from '../../utils/formatting';
+import { AddressDisplay } from '../UI/AddressDisplay';
 import {
     fetchProposal,
     fetchProposalVotes,
@@ -204,7 +204,7 @@ export function ProposalDetail({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="p-3 bg-gray-50 rounded-lg">
                     <div className="text-sm text-gray-500">Creator</div>
-                    <div className="font-medium">{truncateAddress(proposal.creator)}</div>
+                    <div className="font-medium"><AddressDisplay address={proposal.creator} /></div>
                 </div>
                 <div className="p-3 bg-gray-50 rounded-lg">
                     <div className="text-sm text-gray-500">Created</div>
@@ -309,9 +309,7 @@ export function ProposalDetail({
                                     className="flex items-center justify-between p-3 bg-gray-50 rounded"
                                 >
                                     <div>
-                                        <span className="font-medium">
-                                            {truncateAddress(vote.voter)}
-                                        </span>
+                                        <AddressDisplay address={vote.voter} className="font-medium" />
                                         <span className="text-gray-500 text-sm ml-2">
                                             • {vote.weight} votes
                                         </span>

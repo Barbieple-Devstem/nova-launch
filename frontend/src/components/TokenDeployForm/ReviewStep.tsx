@@ -1,6 +1,7 @@
 import { Button } from '../UI/Button';
 import { Card } from '../UI/Card';
-import { formatXLM, truncateAddress, formatNumber } from '../../utils/formatting';
+import { AddressDisplay } from '../UI/AddressDisplay';
+import { formatXLM, formatNumber } from '../../utils/formatting';
 import type { BasicInfoData } from './BasicInfoStep';
 import type { MetadataData } from './MetadataStep';
 
@@ -57,8 +58,8 @@ export function ReviewStep({
                     </div>
                     <div>
                         <p className="text-xs text-gray-500 uppercase tracking-wide">Admin Wallet</p>
-                        <p className="text-sm font-mono text-gray-900 mt-1 break-all">
-                            {truncateAddress(basicInfo.adminWallet, 10, 10)}
+                        <p className="text-sm text-gray-900 mt-1">
+                            <AddressDisplay address={basicInfo.adminWallet} chars={8} />
                         </p>
                     </div>
                     <Button

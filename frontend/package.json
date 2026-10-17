@@ -30,6 +30,7 @@
     "test:contracts:abi:watch": "vitest src/contracts/__tests__/factoryAbi.snapshot.test.ts",
     "test:contracts:abi:update": "vitest run src/contracts/__tests__/factoryAbi.snapshot.test.ts -u",
     "analyze": "npm run build:analyze && node scripts/analyze-bundle.js",
+    "size:check": "node scripts/check-bundle-size.js",
     "monitor": "node scripts/performance-monitor.js",
     "perf:monitor": "node scripts/performance-monitor.js",
     "lighthouse": "lhci autorun"

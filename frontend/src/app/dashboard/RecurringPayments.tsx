@@ -5,6 +5,8 @@ import { Modal } from '../../components/UI/Modal';
 import { Button } from '../../components/UI/Button';
 import { EmptyState } from '../../components/UI/EmptyState';
 import { Spinner } from '../../components/UI/Spinner';
+import { AddressDisplay } from '../../components/UI/AddressDisplay';
+import { shortenAddress } from '../../utils/formatting';
 import { useToast } from '../../hooks/useToast';
 import type { 
   RecurringPayment, 
@@ -31,11 +33,6 @@ function StatusBadge({ status }: { status: RecurringPaymentStatus }) {
   );
 }
 
-// Truncate address for display
-function truncateAddress(address: string): string {
-  if (address.length <= 16) return address;
-  return `${address.slice(0, 8)}...${address.slice(-8)}`;
-}
 
 // Format date for display
 function formatDate(timestamp: number): string {
@@ -160,8 +157,8 @@ function PaymentCard({
                 <span className="text-xs text-gray-500 truncate">{payment.memo}</span>
               )}
             </div>
-            <p className="text-sm text-gray-500 font-mono truncate" title={payment.recipient}>
-              To: {truncateAddress(payment.recipient)}
+            <p className="text-sm text-gray-500 truncate">
+              To: <AddressDisplay address={payment.recipient} />
             </p>
           </div>
           <div className="text-right">
@@ -280,7 +277,7 @@ function PaymentCard({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <p className="text-sm text-red-800">
-              This will permanently stop all future payments to {truncateAddress(payment.recipient)}.
+              This will permanently stop all future payments to {shortenAddress(payment.recipient)}.
             </p>
           </div>
           <p className="text-sm text-gray-600">
@@ -350,8 +347,8 @@ function PaymentHistoryModal({ payment, isOpen, onClose }: PaymentHistoryModalPr
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-500">Recipient</span>
-              <p className="font-mono text-gray-900 truncate" title={payment.recipient}>
-                {truncateAddress(payment.recipient)}
+              <p className="text-gray-900">
+                <AddressDisplay address={payment.recipient} />
               </p>
             </div>
             <div>
