@@ -90,6 +90,31 @@
   - State-aware rendering: active, paused, cancelled, completed
   - ARIA progressbar implementation and `prefers-reduced-motion` support
 
+- **[MOBILE_TOKEN_NAME_OVERFLOW.md](./MOBILE_TOKEN_NAME_OVERFLOW.md)**
+  — Issue [#2166](https://github.com/Emmyt24/nova-launch/issues/2166)
+  - Root-cause analysis: four components with unguarded token-name renders
+  - Fix patterns: `truncate` + `title`, `break-words`, `min-w-0`, responsive `sm:grid-cols-2`
+  - Affected files: `TokenCard`, `ReviewStep`, `TokenAnalyticsPage`, `DashboardLayout`
+
+- **[EMPTY_STATES_CTA.md](./EMPTY_STATES_CTA.md)**
+  — Issue [#2167](https://github.com/Emmyt24/nova-launch/issues/2167)
+  - Coverage audit of all dashboard views against the shared `EmptyState` component
+  - Step-by-step fixes for `CampaignDashboard`, `VaultDashboard`, and `StreamDashboard`
+  - Guide for adding new icons and a checklist for future dashboard views
+
+- **[TOKEN_DEPLOY_CONFIRMATION_STEP.md](./TOKEN_DEPLOY_CONFIRMATION_STEP.md)**
+  — Issue [#2168](https://github.com/Emmyt24/nova-launch/issues/2168)
+  - Documents the existing `ReviewStep` and `ConfirmDialog` components that are built but not wired
+  - Wiring guide: updated `FormStep` type, `ReviewStep` integration, `ConfirmDialog` modal, `ProgressIndicator`
+  - Full data flow diagram and fee calculation reference
+
+- **[ERROR_BOUNDARY_PER_ROUTE.md](./ERROR_BOUNDARY_PER_ROUTE.md)**
+  — Issue [#2169](https://github.com/Emmyt24/nova-launch/issues/2169)
+  - Explains current single-global-boundary limitation in `main.tsx` and `App.tsx`
+  - New `RouteErrorFallback` component spec with route-specific recovery actions
+  - `ErrorBoundary` render-prop upgrade and per-route wrapping pattern for `App.tsx`
+  - Recovery action matrix across all five routes
+
 ---
 
 ## Incident Response & Runbooks
