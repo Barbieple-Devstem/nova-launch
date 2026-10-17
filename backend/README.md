@@ -101,6 +101,15 @@ npm test backend/src/__tests__/chaos.db-pool.test.ts
 This spec covers concurrent query saturation, client acquisition failures,
 and safe shutdown behavior for the pg pool wrapper.
 
+Run the OpenAPI contract tests. These validate tokens, streams, vaults and governance responses
+against `src/lib/openapi/spec.ts`, and CI fails on any drift:
+
+```bash
+npm run test:contract
+```
+
+See [docs/OPENAPI_CONTRACT_TESTS.md](docs/OPENAPI_CONTRACT_TESTS.md).
+
 ## CORS Configuration
 
 The backend runs two separate server processes, each with its own CORS policy:

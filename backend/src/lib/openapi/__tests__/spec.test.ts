@@ -107,21 +107,27 @@ describe("OpenAPI spec", () => {
     "/api/leaderboard/newest",
     "/api/leaderboard/largest-supply",
     "/api/leaderboard/most-burners",
+    "/api/tokens/batch",
+    "/api/tokens/deployment-status/{txHash}",
     "/api/governance/proposals",
-    "/api/governance/proposals/{id}",
-    "/api/governance/proposals/{id}/votes",
+    "/api/governance/proposals/{proposalId}",
+    "/api/governance/proposals/{proposalId}/votes",
+    "/api/governance/proposals/{proposalId}/execution",
+    "/api/governance/queue",
+    "/api/governance/stats",
+    "/api/governance/voters/{address}",
     "/api/campaigns/stats/{tokenId}",
     "/api/campaigns/token/{tokenId}",
     "/api/campaigns/creator/{creator}",
     "/api/campaigns/{campaignId}",
     "/api/campaigns/{campaignId}/executions",
-    "/api/streams/stats/{address}",
+    "/api/streams/{streamId}/metadata",
     "/api/streams/creator/{address}",
     "/api/streams/recipient/{address}",
-    "/api/streams/{id}",
     "/api/vaults/creator/{address}",
     "/api/vaults/beneficiary/{address}",
     "/api/vaults/{id}",
+    "/api/vaults/{id}/withdrawals",
     "/api/webhooks/subscribe",
     "/api/webhooks/unsubscribe/{id}",
     "/api/webhooks/subscriptions",
@@ -218,7 +224,7 @@ describe("OpenAPI spec", () => {
   });
 
   it("governance proposals/{id} documents a 404 response", () => {
-    const op = (openApiSpec.paths!["/api/governance/proposals/{id}"] as any).get;
+    const op = (openApiSpec.paths!["/api/governance/proposals/{proposalId}"] as any).get;
     expect(op.responses["404"]).toBeDefined();
   });
 
