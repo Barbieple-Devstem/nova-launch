@@ -35,6 +35,7 @@ import {
 } from "../types/notification";
 import { IntegrationMetrics } from "../lib/metrics";
 import { CircuitBreaker, CircuitBreakerOpenError, registerCircuitBreaker } from "../lib/circuitBreaker";
+import { getNotificationPreferences, isNotificationChannelEnabled } from "./notificationPreferences";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -494,7 +495,7 @@ export class NotificationService {
 
     return Promise.all(
       request.targets.map((target) =>
-        this.sendToTarget(target, request.payload, request.correlationId)
+        this.sendToTarget(target, request.payload, request.correlationId, request.userId)
       )
     );
   }
@@ -502,8 +503,23 @@ export class NotificationService {
   private async sendToTarget(
     target: NotificationTarget,
     payload: NotificationPayload,
-    correlationId?: string
+    correlationId?: string,
+    userId?: string
   ): Promise<NotificationResult> {
+    if (userId) {
+      const preferences = await getNotificationPreferences(userId);
+      if (!isNotificationChannelEnabled(preferences, target.type)) {
+        IntegrationMetrics.recordNotificationDelivery(target.type, "failed");
+        return {
+          channel: target.type,
+          target,
+          provider: target.provider ?? "preference",
+          success: false,
+          error: "Notification channel disabled by user preference",
+        };
+      }
+    }
+
     const handler = this.handlers.get(target.type);
     if (!handler) {
       return {

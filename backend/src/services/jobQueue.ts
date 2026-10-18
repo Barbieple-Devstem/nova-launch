@@ -15,8 +15,9 @@
  *  - Errors in handlers are caught and never propagate to callers.
  */
 
-import { register, Gauge, Counter, Histogram } from "prom-client";
+import { Gauge, Counter, Histogram, register } from "../lib/metrics";
 import { getCorrelationId, runWithContext } from "../lib/async-context";
+import { logger } from "../lib/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,6 +37,10 @@ export interface Job<T = unknown> {
   createdAt: Date;
   runAt: Date; // earliest time the job may be picked up
   startedAt?: Date;
+  /** Timestamp of the most recent attempt, used by dashboard/stuck-job inspection. */
+  lastAttemptAt?: Date;
+  /** Set once a job crosses the configured stuck threshold. */
+  stuck?: boolean;
   error?: string;
   /** Correlation ID from the originating HTTP request, for distributed tracing. */
   correlationId?: string;
@@ -58,6 +63,29 @@ export interface QueueStats {
   dead: number;
 }
 
+export interface QueueMetrics {
+  pendingByPriority: Record<string, number>;
+  oldestPendingAgeMs: number;
+  pendingJobs: Array<{
+    id: string;
+    type: string;
+    priority: number;
+    attempts: number;
+    status: JobStatus;
+    ageMs: number;
+    lastAttemptAt?: Date;
+  }>;
+  stuckJobs: Array<{
+    id: string;
+    type: string;
+    priority: number;
+    attempts: number;
+    status: JobStatus;
+    ageMs: number;
+    lastAttemptAt?: Date;
+  }>;
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -65,6 +93,16 @@ export interface QueueStats {
 const MAX_PAYLOAD_BYTES = 64 * 1024; // 64 KB
 const DEFAULT_MAX_RETRIES = 3;
 const BASE_BACKOFF_MS = 500;
+/** Maximum consecutive selections of a priority while a lower priority is ready. */
+const FAIRNESS_HIGH_PRIORITY_STREAK = Math.max(
+  1,
+  parseInt(process.env.JOB_QUEUE_FAIRNESS_STREAK ?? "5", 10)
+);
+/** Jobs older than this are flagged; operators can tune it per deployment. */
+const STUCK_THRESHOLD_MS = Math.max(
+  1_000,
+  parseInt(process.env.JOB_QUEUE_STUCK_THRESHOLD_MS ?? String(15 * 60 * 1000), 10)
+);
 
 // ---------------------------------------------------------------------------
 // Prometheus Metrics
@@ -96,6 +134,40 @@ const jobProcessingHistogram = new Histogram({
   registers: [register],
 });
 
+const queueDepthByPriorityGauge = new Gauge({
+  name: "job_queue_depth_by_priority",
+  help: "Number of pending jobs by priority",
+  labelNames: ["priority"],
+  registers: [register],
+});
+
+const queueOldestAgeGauge = new Gauge({
+  name: "job_queue_oldest_age_seconds",
+  help: "Age in seconds of the oldest pending job",
+  registers: [register],
+});
+
+const queueAttemptsGauge = new Gauge({
+  name: "job_queue_attempts",
+  help: "Total attempts for pending and running jobs by type",
+  labelNames: ["job_type"],
+  registers: [register],
+});
+
+const queueStuckGauge = new Gauge({
+  name: "job_queue_stuck_jobs",
+  help: "Number of jobs flagged as stuck by priority",
+  labelNames: ["priority"],
+  registers: [register],
+});
+
+const queueStuckCounter = new Counter({
+  name: "job_queue_stuck_total",
+  help: "Total jobs flagged as stuck",
+  labelNames: ["job_type"],
+  registers: [register],
+});
+
 const jobEnqueuedCounter = new Counter({
   name: "job_enqueued_total",
   help: "Total number of jobs enqueued",
@@ -119,6 +191,7 @@ export class JobQueue {
   private tickTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
   private recurringTimers = new Map<string, ReturnType<typeof setInterval>>();
+  private consecutiveHighPriorityJobs = 0;
 
   /** Counts for completed/failed (kept separately to avoid unbounded arrays). */
   private completedCount = 0;
@@ -222,7 +295,7 @@ export class JobQueue {
     }
   }
 
-  /** Current queue statistics. */
+  /** Current queue statistics. Existing fields remain backward compatible. */
   stats(): QueueStats {
     return {
       pending: this.pending.length,
@@ -231,6 +304,47 @@ export class JobQueue {
       failed: this.failedCount,
       dead: this.dead.length,
     };
+  }
+
+  /** Dashboard-safe queue metrics, including priority depth and stuck jobs. */
+  metrics(now = Date.now()): QueueMetrics {
+    this.updateMetrics(now);
+    const pendingByPriority: Record<string, number> = {};
+    for (const job of this.pending) {
+      const key = String(job.priority);
+      pendingByPriority[key] = (pendingByPriority[key] ?? 0) + 1;
+    }
+    const oldestPendingAgeMs = this.pending.length === 0
+      ? 0
+      : Math.max(0, now - Math.min(...this.pending.map((job) => job.createdAt.getTime())));
+    const pendingJobs = [...this.pending, ...this.running.values()]
+      .map((job) => ({
+        id: job.id,
+        type: job.type,
+        priority: job.priority,
+        attempts: job.attempts,
+        status: job.status,
+        ageMs: Math.max(0, now - job.createdAt.getTime()),
+        ...(job.lastAttemptAt ? { lastAttemptAt: job.lastAttemptAt } : {}),
+      }));
+    const stuckIds = new Set([...this.pending, ...this.running.values()].filter((job) => job.stuck).map((job) => job.id));
+    const stuckJobs = pendingJobs
+      .filter((job) => stuckIds.has(job.id))
+      .map((job) => ({
+        id: job.id,
+        type: job.type,
+        priority: job.priority,
+        attempts: job.attempts,
+        status: job.status,
+        ageMs: job.ageMs,
+        ...(job.lastAttemptAt ? { lastAttemptAt: job.lastAttemptAt } : {}),
+      }));
+    return { pendingByPriority, oldestPendingAgeMs, pendingJobs, stuckJobs };
+  }
+
+  /** Returns only jobs currently flagged as stuck for operational tooling. */
+  stuckJobs(now = Date.now()): QueueMetrics["stuckJobs"] {
+    return this.metrics(now).stuckJobs;
   }
 
   /** Jobs in the dead-letter list (exhausted all retries). */
@@ -312,9 +426,58 @@ export class JobQueue {
 
   // ── Internal ──────────────────────────────────────────────────────────────
 
-  private updateMetrics(): void {
+  private updateMetrics(now = Date.now()): void {
     queueDepthGauge.set(this.pending.length);
     queueInflightGauge.set(this.running.size);
+    const byPriority: Record<string, number> = {};
+    const attemptsByType: Record<string, number> = {};
+    for (const job of this.pending) {
+      const priority = String(job.priority);
+      byPriority[priority] = (byPriority[priority] ?? 0) + 1;
+      attemptsByType[job.type] = (attemptsByType[job.type] ?? 0) + job.attempts;
+    }
+    for (const job of this.running.values()) {
+      attemptsByType[job.type] = (attemptsByType[job.type] ?? 0) + job.attempts;
+    }
+    for (const [priority, count] of Object.entries(byPriority)) {
+      queueDepthByPriorityGauge.set({ priority }, count);
+    }
+    for (const [type, attempts] of Object.entries(attemptsByType)) {
+      queueAttemptsGauge.set({ job_type: type }, attempts);
+    }
+    const oldest = this.pending.length === 0
+      ? 0
+      : Math.max(0, now - Math.min(...this.pending.map((job) => job.createdAt.getTime())));
+    queueOldestAgeGauge.set(oldest / 1000);
+    this.refreshStuckJobs(now);
+  }
+
+  private refreshStuckJobs(now = Date.now()): void {
+    const candidates = [...this.pending, ...this.running.values()];
+    const stuckByPriority: Record<string, number> = {};
+    for (const job of candidates) {
+      const ageMs = Math.max(0, now - job.createdAt.getTime());
+      if (ageMs >= STUCK_THRESHOLD_MS) {
+        const priority = String(job.priority);
+        stuckByPriority[priority] = (stuckByPriority[priority] ?? 0) + 1;
+        if (!job.stuck) {
+          job.stuck = true;
+          queueStuckCounter.inc({ job_type: job.type });
+          logger.warn("job_queue_job_stuck", {
+            jobId: job.id,
+            jobType: job.type,
+            priority: job.priority,
+            attempts: job.attempts,
+            ageMs,
+            status: job.status,
+            thresholdMs: STUCK_THRESHOLD_MS,
+          });
+        }
+      }
+    }
+    for (const [priority, count] of Object.entries(stuckByPriority)) {
+      queueStuckGauge.set({ priority }, count);
+    }
   }
 
   private scheduleTick(): void {
@@ -334,11 +497,11 @@ export class JobQueue {
       this.activeWorkers < this.concurrency &&
       this.pending.length > 0
     ) {
-      // Find the first job that is eligible to run (runAt <= now)
-      const idx = this.pending.findIndex((j) => j.runAt.getTime() <= now);
+      const idx = this.nextEligibleJobIndex(now);
       if (idx === -1) break;
 
       const [job] = this.pending.splice(idx, 1);
+      this.updateFairnessState(job, now);
       this.updateMetrics();
       this.runJob(job);
     }
@@ -354,10 +517,35 @@ export class JobQueue {
     }
   }
 
+  private nextEligibleJobIndex(now: number): number {
+    const eligible = this.pending.filter((job) => job.runAt.getTime() <= now);
+    if (eligible.length === 0) return -1;
+    const highestPriority = Math.max(...eligible.map((job) => job.priority));
+    const lowerPriorityReady = eligible.some((job) => job.priority < highestPriority);
+    if (lowerPriorityReady && this.consecutiveHighPriorityJobs >= FAIRNESS_HIGH_PRIORITY_STREAK) {
+      const nextLower = eligible.findIndex((job) => job.priority < highestPriority);
+      return this.pending.indexOf(eligible[nextLower]);
+    }
+    return this.pending.indexOf(eligible[0]);
+  }
+
+  private updateFairnessState(job: Job, now: number): void {
+    const lowerPriorityReady = this.pending.some(
+      (candidate) => candidate.runAt.getTime() <= now && candidate.priority < job.priority
+    );
+    this.consecutiveHighPriorityJobs = lowerPriorityReady
+      ? this.consecutiveHighPriorityJobs + 1
+      : 0;
+    if (job.priority <= Math.min(...this.pending.map((candidate) => candidate.priority), job.priority)) {
+      this.consecutiveHighPriorityJobs = 0;
+    }
+  }
+
   private async runJob(job: Job): Promise<void> {
     job.status = "running";
     job.attempts += 1;
     job.startedAt = new Date();
+    job.lastAttemptAt = job.startedAt;
     this.running.set(job.id, job);
     this.activeWorkers++;
     this.updateMetrics();

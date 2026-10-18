@@ -3,6 +3,19 @@ import { NotificationService } from "./notificationService";
 import { NotificationChannelType } from "../types/notification";
 import webhookDeliveryService from "./webhookDeliveryService";
 import axios from "axios";
+import { getNotificationPreferences } from "./notificationPreferences";
+
+vi.mock("./notificationPreferences", () => ({
+  getNotificationPreferences: vi.fn(async () => ({
+    emailEnabled: true,
+    smsEnabled: true,
+    webhookEnabled: true,
+  })),
+  isNotificationChannelEnabled: vi.fn((preferences: any, channel: string) =>
+    channel === "EMAIL" ? preferences.emailEnabled :
+    channel === "SMS" ? preferences.smsEnabled : preferences.webhookEnabled
+  ),
+}));
 
 vi.mock("axios");
 vi.mock("./webhookDeliveryService", () => ({
@@ -98,6 +111,25 @@ describe("NotificationService", () => {
       }),
       expect.any(Object)
     );
+  });
+
+  it("suppresses a channel disabled by the user's saved preference", async () => {
+    vi.mocked(getNotificationPreferences).mockResolvedValueOnce({
+      emailEnabled: false,
+      smsEnabled: true,
+      webhookEnabled: true,
+    });
+
+    process.env.NOTIFICATION_EMAIL_API_URL = "https://email.example.com/send";
+    const result = await service.send({
+      userId: "user-1",
+      targets: [{ type: "EMAIL", destination: "user@example.com" }],
+      payload: { message: "Preference check" },
+    });
+
+    expect(result[0].success).toBe(false);
+    expect(result[0].error).toBe("Notification channel disabled by user preference");
+    expect(axios.post).not.toHaveBeenCalled();
   });
 
   it("returns failure for email when no destination is provided", async () => {

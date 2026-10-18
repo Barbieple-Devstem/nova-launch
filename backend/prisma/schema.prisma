@@ -84,6 +84,7 @@ model BurnRecord {
   @@index([from])
   @@index([txHash])
   @@index([timestamp])
+  @@index([tokenId, timestamp])
 }
 
 model BuybackCampaign {
@@ -138,6 +139,7 @@ model User {
   lastActive DateTime @updatedAt
 
   adminAuditLogs AdminAuditLog[]
+  notificationPreference NotificationPreference?
 
   @@index([address])
   @@index([role])
@@ -381,6 +383,7 @@ model Proposal {
   @@index([startTime])
   @@index([endTime])
   @@index([createdAt])
+  @@index([status, endTime])
 }
 
 model Vote {
@@ -466,6 +469,8 @@ model Campaign {
   @@index([type])
   @@index([startTime])
   @@index([createdAt])
+  @@index([tokenId, createdAt])
+  @@index([status, createdAt])
 }
 
 model CampaignExecution {
@@ -674,4 +679,19 @@ model TenantComplexityBudget {
   tenantId         String   @id
   complexityBudget Int
   updatedAt        DateTime @updatedAt
+}
+
+
+/// Per-user notification channel preferences. Defaults are enabled so existing users
+/// retain the pre-preferences delivery behavior.
+model NotificationPreference {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  emailEnabled  Boolean  @default(true)
+  smsEnabled    Boolean  @default(true)
+  webhookEnabled Boolean @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

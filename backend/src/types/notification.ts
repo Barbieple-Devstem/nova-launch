@@ -32,6 +32,8 @@ export interface NotificationRequest {
   payload: NotificationPayload;
   /** Optional correlation identifier for multi-channel fan-out tracing */
   correlationId?: string;
+  /** User whose saved preferences should gate delivery. Omitted for legacy/system sends. */
+  userId?: string;
 }
 
 export interface NotificationResult {
