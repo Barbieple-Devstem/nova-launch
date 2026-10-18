@@ -19,6 +19,7 @@
 
 import { WebSocketServer, WebSocket, RawData } from "ws";
 import { IncomingMessage, Server } from "http";
+import jwt from "jsonwebtoken";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,7 +48,8 @@ export interface LiveEvent {
 
 /** Message sent by a client to subscribe/unsubscribe */
 interface SubscribeMessage {
-  type: "subscribe" | "unsubscribe";
+  type: "subscribe" | "unsubscribe" | "refresh_token" | "auth";
+  token?: string;
   /** Filter to specific event types; omit to receive all */
   events?: LiveEventType[];
   /** Filter to a specific token address; omit to receive all */
@@ -61,6 +63,8 @@ interface ClientState {
   subscribedEvents: Set<LiveEventType> | null; // null = all events
   tokenAddress: string | null;
   isAlive: boolean;
+  tokenExpiresAt?: number;
+  tokenExpiryTimer?: ReturnType<typeof setTimeout>;
 }
 
 // ---------------------------------------------------------------------------
@@ -70,6 +74,7 @@ interface ClientState {
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const MAX_MESSAGE_BYTES = 4_096;
 const MAX_CONNECTIONS_PER_IP = 10;
+export const TOKEN_EXPIRED_CLOSE_CODE = 4001;
 
 // ---------------------------------------------------------------------------
 // WebSocketService
@@ -132,6 +137,9 @@ export class WebSocketService {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
     }
+    for (const state of this.clients.values()) {
+      if (state.tokenExpiryTimer) clearTimeout(state.tokenExpiryTimer);
+    }
     this.wss?.close();
     this.wss = null;
     this.clients.clear();
@@ -160,6 +168,12 @@ export class WebSocketService {
       tokenAddress: null,
       isAlive: true,
     };
+    const initialToken = this.extractToken(req);
+    if (initialToken && !this.applyToken(state, initialToken)) {
+      ws.close(1008, "Invalid or expired authentication token");
+      this.decrementIpCount(ip);
+      return;
+    }
 
     this.clients.set(ws, state);
 
@@ -223,18 +237,59 @@ export class WebSocketService {
       state.subscribedEvents = null;
       state.tokenAddress = null;
       ws.send(JSON.stringify({ type: "unsubscribed", timestamp: new Date().toISOString() }));
+    } else if (msg.type === "refresh_token" || msg.type === "auth") {
+      if (!msg.token || !this.applyToken(state, msg.token)) {
+        ws.close(TOKEN_EXPIRED_CLOSE_CODE, "Authentication token expired; refresh required");
+        return;
+      }
+      ws.send(JSON.stringify({
+        type: "token_refreshed",
+        expiresAt: state.tokenExpiresAt,
+        timestamp: new Date().toISOString(),
+      }));
     } else {
       ws.send(JSON.stringify({ type: "error", message: "Unknown message type" }));
     }
   }
 
   private handleClose(ws: WebSocket, ip: string): void {
+    const state = this.clients.get(ws);
+    if (state?.tokenExpiryTimer) clearTimeout(state.tokenExpiryTimer);
     this.clients.delete(ws);
+    this.decrementIpCount(ip);
+  }
+
+  private decrementIpCount(ip: string): void {
     const count = (this.ipConnectionCount.get(ip) ?? 1) - 1;
-    if (count <= 0) {
-      this.ipConnectionCount.delete(ip);
-    } else {
-      this.ipConnectionCount.set(ip, count);
+    if (count <= 0) this.ipConnectionCount.delete(ip);
+    else this.ipConnectionCount.set(ip, count);
+  }
+
+  private extractToken(req: IncomingMessage): string | null {
+    const authorization = req.headers.authorization;
+    if (typeof authorization !== "string") return null;
+    const match = authorization.match(/^Bearer\s+(.+)$/i);
+    return match?.[1] ?? null;
+  }
+
+  private applyToken(state: ClientState, token: string): boolean {
+    const secret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
+    if (!secret) return false;
+    try {
+      const payload = jwt.verify(token, secret) as jwt.JwtPayload & { type?: string };
+      if (payload.type && payload.type !== "access") return false;
+      if (!payload.exp) return false;
+      if (state.tokenExpiryTimer) clearTimeout(state.tokenExpiryTimer);
+      const expiresAt = payload.exp * 1000;
+      state.tokenExpiresAt = expiresAt;
+      state.tokenExpiryTimer = setTimeout(() => {
+        if (state.ws.readyState === WebSocket.OPEN) {
+          state.ws.close(TOKEN_EXPIRED_CLOSE_CODE, "Authentication token expired; refresh required");
+        }
+      }, Math.max(0, expiresAt - Date.now()));
+      return true;
+    } catch {
+      return false;
     }
   }
 
