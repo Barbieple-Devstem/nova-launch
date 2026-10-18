@@ -33,3 +33,6 @@ Thumbs.db
 # Logs
 logs/
 *.log
+
+# Generated on demand by `npm run openapi:response-schemas`
+openapi.response-schemas.json

@@ -8,12 +8,14 @@ import { formatXLM, truncateAddress } from '../../utils/formatting';
 import { BasicInfoStep, type BasicInfoData } from './BasicInfoStep';
 import { TemplateSelector } from './TemplateSelector';
 import { FeeDisplay } from './FeeDisplay';
-import { Button, CopyButton, ProgressBar, LoadingButton } from '../UI';
+import { Button, CopyButton, LoadingButton } from '../UI';
 import { analytics } from '../../services/analytics';
 import { Input } from '../UI/Input';
 import type { TokenTemplate } from '../../config/tokenTemplates';
 import { useErrorContext } from '../../providers/ErrorContextProvider';
 import { ACTIVE_NETWORK } from '../../config/stellar';
+import { deriveDeploySteps } from '../../utils/deploySteps';
+import { DeploymentProgressStepper } from './DeploymentProgressStepper';
 
 interface TokenDeployFormProps {
     wallet: WalletState;
@@ -63,8 +65,33 @@ export function TokenDeployForm({
     const { baseFee, metadataFee, loading: feesLoading, error: feesError, isFallback, refresh: refreshFees } =
         useFactoryFees(wallet.network);
 
-    const { deploy, reset, status, statusMessage, isDeploying, error } =
-        useTokenDeploy(wallet, { baseFee, metadataFee });
+    const {
+        deploy,
+        reset,
+        status,
+        isDeploying,
+        error,
+        deployStep,
+        failedStep,
+        indexStatus,
+        txHash,
+        monitorStatus,
+        monitorProgress,
+    } = useTokenDeploy(wallet, { baseFee, metadataFee });
+
+    const deploySteps = useMemo(
+        () =>
+            deriveDeploySteps({
+                currentStep: deployStep,
+                failedStep,
+                monitorStatus,
+                monitorProgress,
+                indexStatus,
+                uploadingMetadata: status === 'uploading',
+            }),
+        [deployStep, failedStep, monitorStatus, monitorProgress, indexStatus, status]
+    );
+    const showStepFailure = status === 'error' && failedStep !== null;
 
     const { setTxContext } = useErrorContext();
     
@@ -191,6 +218,12 @@ export function TokenDeployForm({
                         Deployment completed successfully on {wallet.network}.
                     </p>
                 </div>
+
+                <DeploymentProgressStepper
+                    steps={deploySteps}
+                    network={wallet.network}
+                    txHash={txHash ?? result.transactionHash}
+                />
 
                 <div className="space-y-3 rounded-lg border border-gray-200 p-4">
                     <div>
@@ -404,7 +437,18 @@ export function TokenDeployForm({
                 onRetry={refreshFees}
             />
 
-            {status === 'error' && error ? (
+            {(isDeploying || showStepFailure) ? (
+                <DeploymentProgressStepper
+                    steps={deploySteps}
+                    network={wallet.network}
+                    txHash={txHash}
+                    errorMessage={showStepFailure && error ? error.message : undefined}
+                    onRetry={showStepFailure ? () => void handleRetry() : undefined}
+                    retryDisabled={isDeploying}
+                />
+            ) : null}
+
+            {status === 'error' && error && !showStepFailure ? (
                 <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
                     <h3 className="font-semibold text-red-800 mb-2">Deployment Failed</h3>
                     <p className="text-red-700 mb-3">{typeof error === 'string' ? error : error.message || 'An error occurred during deployment'}</p>
@@ -420,19 +464,6 @@ export function TokenDeployForm({
             {localError ? (
                 <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
                     {typeof localError === 'string' ? localError : 'An error occurred'}
-                </div>
-            ) : null}
-
-            {isDeploying ? (
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
-                    <p className="text-sm font-medium text-blue-800">{statusMessage}</p>
-                    <ProgressBar
-                        progress={status === 'uploading' ? 30 : status === 'deploying' ? 70 : 100}
-                        label={status === 'uploading' ? 'Uploading metadata...' : 'Deploying token...'}
-                        showPercentage={true}
-                        variant="default"
-                        size="md"
-                    />
                 </div>
             ) : null}
 

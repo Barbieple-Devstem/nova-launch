@@ -3,7 +3,13 @@
  * Source of truth for all endpoint documentation.
  */
 
-import type { OpenAPIObject } from "openapi3-ts/oas30";
+import type {
+  OpenAPIObject,
+  ParameterObject,
+  ReferenceObject,
+  ResponseObject,
+  SchemaObject,
+} from "openapi3-ts/oas30";
 
 // ---------------------------------------------------------------------------
 // Reusable schemas
@@ -12,12 +18,53 @@ import type { OpenAPIObject } from "openapi3-ts/oas30";
 const schemas = {
   ErrorResponse: {
     type: "object",
+    description:
+      "Legacy error shape (`error` is a string). Used by routes that predate the `ApiErrorEnvelope` helper, e.g. governance and token search.",
     properties: {
       success: { type: "boolean", example: false },
       error: { type: "string" },
       message: { type: "string" },
+      details: { description: "Optional validation details (e.g. zod issues)." },
     },
     required: ["success", "error"],
+  },
+
+  ApiErrorEnvelope: {
+    type: "object",
+    description: "Error envelope produced by `errorResponse()` in `utils/response.ts`.",
+    properties: {
+      success: { type: "boolean", enum: [false] },
+      error: {
+        type: "object",
+        properties: {
+          code: { type: "string", example: "INVALID_INPUT" },
+          message: { type: "string" },
+          details: { description: "Optional, code-specific details." },
+          correlationId: { type: "string" },
+        },
+        required: ["code", "message"],
+      },
+      timestamp: { type: "string", format: "date-time" },
+      correlationId: { type: "string" },
+    },
+    required: ["success", "error", "timestamp"],
+  },
+
+  TenantError: {
+    type: "object",
+    description: "Rejection from `tenantMiddleware` (missing or invalid tenant context).",
+    properties: { error: { type: "string" } },
+    required: ["error"],
+  },
+
+  ValidationErrorResponse: {
+    type: "object",
+    description: "express-validator failure produced by `middleware/validation.ts#validate`.",
+    properties: {
+      success: { type: "boolean", enum: [false] },
+      errors: { type: "array", items: { type: "object", additionalProperties: true } },
+    },
+    required: ["success", "errors"],
   },
 
   Pagination: {
@@ -32,6 +79,7 @@ const schemas = {
       nextCursor: { type: "string", nullable: true, description: "Opaque cursor for the next page; null when there are no more results." },
       hasMore: { type: "boolean", description: "Whether another page is available via `nextCursor`." },
     },
+    required: ["page", "limit", "total", "totalPages", "hasNext", "hasPrev", "nextCursor", "hasMore"],
   },
 
   TokenRecord: {
@@ -51,6 +99,105 @@ const schemas = {
       createdAt: { type: "string", format: "date-time" },
       updatedAt: { type: "string", format: "date-time" },
     },
+    required: [
+      "id", "address", "creator", "name", "symbol", "decimals", "totalSupply",
+      "initialSupply", "totalBurned", "burnCount", "metadataUri", "createdAt", "updatedAt",
+    ],
+  },
+
+  TokenSearchFilters: {
+    type: "object",
+    description: "Echo of the filters applied to the search (undefined filters are omitted).",
+    properties: {
+      q: { type: "string" },
+      creator: { type: "string" },
+      startDate: { type: "string" },
+      endDate: { type: "string" },
+      minSupply: { type: "string" },
+      maxSupply: { type: "string" },
+      hasBurns: { type: "string", enum: ["true", "false"] },
+      sortBy: { type: "string", enum: ["created", "burned", "supply", "name"] },
+      sortOrder: { type: "string", enum: ["asc", "desc"] },
+      cursor: { type: "string" },
+    },
+    required: ["sortBy", "sortOrder"],
+  },
+
+  TokenSearchResponse: {
+    type: "object",
+    properties: {
+      success: { type: "boolean" },
+      data: { type: "array", items: { $ref: "#/components/schemas/TokenRecord" } },
+      pagination: { $ref: "#/components/schemas/Pagination" },
+      filters: { $ref: "#/components/schemas/TokenSearchFilters" },
+      cached: { type: "boolean", description: "Present (true) when served from the in-memory cache." },
+    },
+    required: ["success", "data", "pagination", "filters"],
+  },
+
+  TokenDeployInput: {
+    type: "object",
+    properties: {
+      creator: { type: "string", maxLength: 64 },
+      name: { type: "string", maxLength: 100 },
+      symbol: { type: "string", maxLength: 12, pattern: "^[A-Z0-9]+$" },
+      decimals: { type: "integer", minimum: 0, maximum: 18 },
+      initialSupply: { type: "string", pattern: "^\\d+$" },
+      metadataUri: { type: "string", format: "uri" },
+    },
+    required: ["creator", "name", "symbol", "decimals", "initialSupply"],
+  },
+
+  DeployedToken: {
+    type: "object",
+    properties: {
+      id: { type: "string" },
+      address: { type: "string" },
+      creator: { type: "string" },
+      name: { type: "string" },
+      symbol: { type: "string" },
+      decimals: { type: "integer" },
+      totalSupply: { type: "string" },
+      initialSupply: { type: "string" },
+      totalBurned: { type: "string" },
+      burnCount: { type: "integer" },
+      metadataUri: { type: "string", nullable: true },
+      createdAt: { type: "string", format: "date-time" },
+      updatedAt: { type: "string", format: "date-time" },
+    },
+    required: [
+      "id", "address", "creator", "name", "symbol", "decimals", "totalSupply",
+      "initialSupply", "totalBurned", "burnCount", "metadataUri", "createdAt", "updatedAt",
+    ],
+  },
+
+  FailedTokenDeploy: {
+    type: "object",
+    properties: {
+      input: { $ref: "#/components/schemas/TokenDeployInput" },
+      error: { type: "string" },
+    },
+    required: ["input", "error"],
+  },
+
+  BatchDeployResult: {
+    type: "object",
+    properties: {
+      succeeded: { type: "array", items: { $ref: "#/components/schemas/DeployedToken" } },
+      failed: { type: "array", items: { $ref: "#/components/schemas/FailedTokenDeploy" } },
+    },
+    required: ["succeeded", "failed"],
+  },
+
+  DeploymentStatus: {
+    type: "object",
+    properties: {
+      txHash: { type: "string" },
+      status: { type: "string", enum: ["PENDING", "CONFIRMED", "FAILED"] },
+      reason: { type: "string" },
+      ledger: { type: "integer" },
+    },
+    required: ["txHash", "status"],
   },
 
   CampaignRecord: {
@@ -80,59 +227,212 @@ const schemas = {
       proposalId: { type: "integer" },
       tokenId: { type: "string" },
       proposer: { type: "string" },
+      title: { type: "string" },
+      description: { type: "string", nullable: true },
       status: {
         type: "string",
-        enum: ["ACTIVE", "PASSED", "REJECTED", "EXECUTED", "CANCELLED", "EXPIRED"],
+        enum: ["ACTIVE", "PASSED", "REJECTED", "QUEUED", "EXECUTED", "CANCELLED", "EXPIRED"],
       },
       proposalType: {
         type: "string",
         enum: ["PARAMETER_CHANGE", "ADMIN_TRANSFER", "TREASURY_SPEND", "CONTRACT_UPGRADE", "CUSTOM"],
       },
-      quorum: { type: "string" },
-      threshold: { type: "string" },
-      createdAt: { type: "string", format: "date-time" },
+      quorum: { type: "string", description: "BigInt as string" },
+      threshold: { type: "string", description: "BigInt as string" },
+      metadata: { type: "string", nullable: true },
+      txHash: { type: "string" },
       startTime: { type: "string", format: "date-time" },
       endTime: { type: "string", format: "date-time" },
+      createdAt: { type: "string", format: "date-time" },
+      updatedAt: { type: "string", format: "date-time" },
+      executedAt: { type: "string", format: "date-time", nullable: true },
+      cancelledAt: { type: "string", format: "date-time", nullable: true },
+      canceller: { type: "string", nullable: true },
+      cancelReason: { type: "string", nullable: true },
       votes: { type: "array", items: { $ref: "#/components/schemas/GovernanceVoteRecord" } },
-      executions: { type: "array", items: { type: "object" } },
+      executions: { type: "array", items: { $ref: "#/components/schemas/ProposalExecutionRecord" } },
     },
+    required: [
+      "id", "proposalId", "tokenId", "proposer", "title", "status", "proposalType",
+      "quorum", "threshold", "startTime", "endTime", "createdAt", "updatedAt", "votes", "executions",
+    ],
   },
 
   GovernanceVoteRecord: {
     type: "object",
+    description: "List endpoints return the core fields; detail/vote endpoints also include proposalId, reason and txHash.",
     properties: {
       id: { type: "string" },
+      proposalId: { type: "string", description: "Internal proposal UUID" },
       voter: { type: "string" },
       support: { type: "boolean" },
-      weight: { type: "string" },
+      weight: { type: "string", description: "BigInt as string" },
+      reason: { type: "string", nullable: true },
+      txHash: { type: "string" },
       timestamp: { type: "string", format: "date-time" },
     },
+    required: ["id", "voter", "support", "weight", "timestamp"],
+  },
+
+  ProposalExecutionRecord: {
+    type: "object",
+    properties: {
+      id: { type: "string" },
+      proposalId: { type: "string", description: "Internal proposal UUID" },
+      executor: { type: "string" },
+      success: { type: "boolean" },
+      returnData: { type: "string", nullable: true },
+      gasUsed: { type: "string", description: "BigInt as string; omitted when unknown" },
+      txHash: { type: "string" },
+      executedAt: { type: "string", format: "date-time" },
+    },
+    required: ["id", "executor", "success", "executedAt"],
+  },
+
+  ProposalAnalytics: {
+    type: "object",
+    properties: {
+      proposalId: { type: "integer" },
+      totalVotes: { type: "integer" },
+      votesFor: { type: "string" },
+      votesAgainst: { type: "string" },
+      participationRate: { type: "number" },
+      uniqueVoters: { type: "integer" },
+      status: { type: "string" },
+      timeRemaining: { type: "integer", description: "Seconds until voting ends; omitted once ended" },
+    },
+    required: ["proposalId", "totalVotes", "votesFor", "votesAgainst", "participationRate", "uniqueVoters", "status"],
+  },
+
+  GovernanceStats: {
+    type: "object",
+    properties: {
+      totalProposals: { type: "integer" },
+      activeProposals: { type: "integer" },
+      executedProposals: { type: "integer" },
+      totalVotes: { type: "integer" },
+      uniqueVoters: { type: "integer" },
+      averageParticipation: { type: "number" },
+      proposalsByType: { type: "object", additionalProperties: { type: "integer" } },
+      proposalsByStatus: { type: "object", additionalProperties: { type: "integer" } },
+    },
+    required: [
+      "totalProposals", "activeProposals", "executedProposals", "totalVotes",
+      "uniqueVoters", "averageParticipation", "proposalsByType", "proposalsByStatus",
+    ],
+  },
+
+  VoterStats: {
+    type: "object",
+    properties: {
+      address: { type: "string" },
+      totalVotes: { type: "integer" },
+      votingPower: { type: "string" },
+      participationRate: { type: "number" },
+      proposalsVoted: { type: "array", items: { type: "integer" } },
+      recentVotes: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            proposalId: { type: "integer" },
+            proposalTitle: { type: "string" },
+            support: { type: "boolean" },
+            weight: { type: "string" },
+            timestamp: { type: "string", format: "date-time" },
+          },
+          required: ["proposalId", "proposalTitle", "support", "weight", "timestamp"],
+        },
+      },
+    },
+    required: ["address", "totalVotes", "votingPower", "participationRate", "proposalsVoted", "recentVotes"],
+  },
+
+  QueuedProposal: {
+    type: "object",
+    properties: {
+      proposalId: { type: "integer" },
+      tokenId: { type: "string" },
+      title: { type: "string" },
+      proposalType: { type: "string" },
+      status: { type: "string", enum: ["QUEUED"] },
+      position: { type: "integer", description: "0-based position within its proposal-type queue" },
+      queuedAt: { type: "string", format: "date-time" },
+    },
+    required: ["proposalId", "tokenId", "title", "proposalType", "status", "position", "queuedAt"],
   },
 
   StreamRecord: {
     type: "object",
+    description: "Off-chain payment-stream metadata (`PaymentStreamMetadata`) served by `/api/streams`.",
     properties: {
-      id: { type: "integer" },
+      id: { type: "string" },
+      streamId: { type: "string", description: "On-chain u64 stream id as string" },
       creator: { type: "string" },
       recipient: { type: "string" },
-      tokenAddress: { type: "string" },
-      amount: { type: "string" },
-      status: { type: "string", enum: ["CREATED", "ACTIVE", "COMPLETED", "CANCELLED"] },
+      title: { type: "string", nullable: true },
+      description: { type: "string", nullable: true },
+      tags: { type: "array", items: { type: "string" } },
       createdAt: { type: "string", format: "date-time" },
+      updatedAt: { type: "string", format: "date-time" },
     },
+    required: ["id", "streamId", "creator", "recipient", "title", "description", "tags", "createdAt", "updatedAt"],
+  },
+
+  StreamMetadataInput: {
+    type: "object",
+    properties: {
+      recipient: { type: "string", minLength: 1 },
+      title: { type: "string", maxLength: 200 },
+      description: { type: "string", maxLength: 2000 },
+      tags: { type: "array", maxItems: 20, items: { type: "string", maxLength: 50 } },
+    },
+    required: ["recipient"],
   },
 
   VaultRecord: {
     type: "object",
+    description: "On-chain stream-vault projection (`Stream` table) served by `/api/vaults`.",
     properties: {
-      id: { type: "integer" },
+      id: { type: "string" },
+      streamId: { type: "integer" },
       creator: { type: "string" },
-      beneficiary: { type: "string" },
-      tokenAddress: { type: "string" },
-      amount: { type: "string" },
-      status: { type: "string", enum: ["CREATED", "ACTIVE", "COMPLETED", "CANCELLED"] },
+      recipient: { type: "string", description: "Beneficiary address" },
+      amount: { type: "string", description: "BigInt as string" },
+      metadata: { type: "string" },
+      status: { type: "string", enum: ["CREATED", "CLAIMED", "CANCELLED"] },
+      txHash: { type: "string" },
       createdAt: { type: "string", format: "date-time" },
+      claimedAt: { type: "string", format: "date-time" },
+      cancelledAt: { type: "string", format: "date-time" },
     },
+    required: ["id", "streamId", "creator", "recipient", "amount", "status", "txHash", "createdAt"],
+  },
+
+  VaultWithdrawal: {
+    type: "object",
+    properties: {
+      id: { type: "string" },
+      vaultId: { type: "integer" },
+      transactionType: { type: "string", enum: ["CLAIMED", "CANCELLED"] },
+      amount: { type: "string" },
+      timestamp: { type: "string", format: "date-time" },
+      txHash: { type: "string" },
+      recipient: { type: "string" },
+    },
+    required: ["id", "vaultId", "transactionType", "amount", "timestamp", "txHash", "recipient"],
+  },
+
+  VaultWithdrawalPage: {
+    type: "object",
+    properties: {
+      withdrawals: { type: "array", items: { $ref: "#/components/schemas/VaultWithdrawal" } },
+      nextCursor: { type: "string" },
+      prevCursor: { type: "string" },
+      hasMore: { type: "boolean" },
+      totalCount: { type: "integer" },
+    },
+    required: ["withdrawals", "hasMore", "totalCount"],
   },
 
   WebhookSubscription: {
@@ -216,6 +516,43 @@ const parameters = {
     description: "Stellar wallet address",
   },
 } as const;
+
+// ---------------------------------------------------------------------------
+// Response helpers
+// ---------------------------------------------------------------------------
+
+const ref = (name: string): ReferenceObject => ({ $ref: `#/components/schemas/${name}` });
+const json = (schema: SchemaObject | ReferenceObject) => ({ "application/json": { schema } });
+
+/** `successResponse(data)` envelope from `utils/response.ts`. */
+const envelope = (data: SchemaObject | ReferenceObject): SchemaObject => ({
+  type: "object",
+  properties: {
+    success: { type: "boolean", enum: [true] },
+    data,
+    timestamp: { type: "string", format: "date-time" },
+    correlationId: { type: "string" },
+  },
+  required: ["success", "data", "timestamp"],
+});
+
+/** Hand-rolled `{ success, data }` body used by governance routes. */
+const legacyOk = (data: SchemaObject | ReferenceObject): SchemaObject => ({
+  type: "object",
+  properties: { success: { type: "boolean", enum: [true] }, data },
+  required: ["success", "data"],
+});
+
+const apiError = (description: string): ResponseObject => ({ description, content: json(ref("ApiErrorEnvelope")) });
+const legacyError = (description: string): ResponseObject => ({ description, content: json(ref("ErrorResponse")) });
+/** Error responses on tenant-scoped routes may also come from `tenantMiddleware`. */
+const orTenantError = (description: string, name: "ErrorResponse" | "ApiErrorEnvelope"): ResponseObject => ({
+  description,
+  content: json({ anyOf: [ref(name), ref("TenantError")] }),
+});
+const validationError: ResponseObject = { description: "Validation error", content: json(ref("ValidationErrorResponse")) };
+
+const proposalIdParam: ParameterObject = { name: "proposalId", in: "path", required: true, schema: { type: "integer", minimum: 0 } };
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -306,6 +643,7 @@ const paths: OpenAPIObject["paths"] = {
     get: {
       tags: ["Tokens"],
       summary: "Search and filter tokens",
+      description: "Requires tenant context (`X-Tenant-ID` header or JWT tenant claim); results are always scoped to the tenant.",
       parameters: [
         { name: "q", in: "query", schema: { type: "string" }, description: "Search by name or symbol" },
         { name: "creator", in: "query", schema: { type: "string" } },
@@ -322,22 +660,53 @@ const paths: OpenAPIObject["paths"] = {
       ],
       responses: {
         "200": {
-          description: "Token search results",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  success: { type: "boolean" },
-                  data: { type: "array", items: { $ref: "#/components/schemas/TokenRecord" } },
-                  pagination: { $ref: "#/components/schemas/Pagination" },
-                  cached: { type: "boolean" },
-                },
-              },
-            },
+          description: "Token search results. Prefer cursor pagination: pass `pagination.nextCursor` back as `cursor` until it is null. Requests that send `page` (without `cursor`) receive deprecation headers.",
+          headers: {
+            Deprecation: { description: "`true` when the deprecated `page` parameter was used.", schema: { type: "string" } },
+            Sunset: { description: "Date after which offset (`page`) pagination may be removed.", schema: { type: "string" } },
+            Link: { description: "Link to the successor (`cursor`) documentation, rel=\"deprecation\".", schema: { type: "string" } },
+            Warning: { description: "299 warning describing the deprecation.", schema: { type: "string" } },
           },
+          content: json(ref("TokenSearchResponse")),
         },
-        "400": { description: "Invalid parameters", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        "400": orTenantError("Invalid parameters, malformed `cursor`, `cursor` combined with a sortBy other than `created`, or missing tenant context", "ErrorResponse"),
+        "500": legacyError("Server error"),
+      },
+    },
+  },
+  "/api/tokens/batch": {
+    post: {
+      tags: ["Tokens"],
+      summary: "Deploy up to 10 tokens atomically",
+      requestBody: {
+        required: true,
+        content: json({
+          type: "object",
+          properties: { tokens: { type: "array", minItems: 1, maxItems: 10, items: ref("TokenDeployInput") } },
+          required: ["tokens"],
+        }),
+      },
+      responses: {
+        "200": { description: "All tokens deployed", content: json(envelope(ref("BatchDeployResult"))) },
+        "207": { description: "Mixed results", content: json(envelope(ref("BatchDeployResult"))) },
+        "400": orTenantError("Invalid request body or missing tenant context", "ApiErrorEnvelope"),
+        "422": { description: "All tokens failed", content: json(envelope(ref("BatchDeployResult"))) },
+        "500": apiError("Batch deployment failed"),
+      },
+    },
+  },
+  "/api/tokens/deployment-status/{txHash}": {
+    get: {
+      tags: ["Tokens"],
+      summary: "Stellar finality + backend indexing status of a deployment",
+      parameters: [
+        { name: "txHash", in: "path", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{64}$" } },
+        { name: "network", in: "query", schema: { type: "string", enum: ["testnet", "mainnet"], default: "testnet" } },
+      ],
+      responses: {
+        "200": { description: "Deployment status", content: json(ref("DeploymentStatus")) },
+        "400": orTenantError("Invalid transaction hash, network, or missing tenant context", "ErrorResponse"),
+        "500": legacyError("Failed to fetch deployment status"),
       },
     },
   },
@@ -411,7 +780,7 @@ const paths: OpenAPIObject["paths"] = {
       tags: ["Governance"],
       summary: "List governance proposals",
       parameters: [
-        { name: "status", in: "query", schema: { type: "string", enum: ["ACTIVE", "PASSED", "REJECTED", "EXECUTED", "CANCELLED", "EXPIRED"] } },
+        { name: "status", in: "query", schema: { type: "string", enum: ["ACTIVE", "PASSED", "REJECTED", "QUEUED", "EXECUTED", "CANCELLED", "EXPIRED"] } },
         { name: "proposalType", in: "query", schema: { type: "string", enum: ["PARAMETER_CHANGE", "ADMIN_TRANSFER", "TREASURY_SPEND", "CONTRACT_UPGRADE", "CUSTOM"] } },
         { name: "tokenId", in: "query", schema: { type: "string" } },
         { name: "proposer", in: "query", schema: { type: "string" } },
@@ -423,70 +792,172 @@ const paths: OpenAPIObject["paths"] = {
       responses: {
         "200": {
           description: "List of proposals",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  success: { type: "boolean" },
-                  data: {
-                    type: "object",
-                    properties: {
-                      proposals: { type: "array", items: { $ref: "#/components/schemas/ProposalRecord" } },
-                      total: { type: "integer" },
-                      limit: { type: "integer" },
-                      offset: { type: "integer" },
-                    },
-                  },
-                },
-              },
+          content: json(legacyOk({
+            type: "object",
+            properties: {
+              proposals: { type: "array", items: ref("ProposalRecord") },
+              total: { type: "integer" },
+              limit: { type: "integer" },
+              offset: { type: "integer" },
             },
-          },
+            required: ["proposals", "total", "limit", "offset"],
+          })),
         },
+        "400": validationError,
+        "500": legacyError("Server error"),
       },
     },
   },
-  "/api/governance/proposals/{id}": {
+  "/api/governance/proposals/{proposalId}": {
     get: {
       tags: ["Governance"],
-      summary: "Get proposal by ID",
-      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+      summary: "Get proposal by on-chain ID, with analytics",
+      parameters: [proposalIdParam],
       responses: {
-        "200": { description: "Proposal detail" },
-        "404": { description: "Not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        "200": {
+          description: "Proposal detail",
+          content: json(legacyOk({
+            type: "object",
+            properties: { proposal: ref("ProposalRecord"), analytics: ref("ProposalAnalytics") },
+            required: ["proposal", "analytics"],
+          })),
+        },
+        "400": validationError,
+        "404": legacyError("Proposal not found"),
+        "500": legacyError("Server error"),
       },
     },
   },
-  "/api/governance/proposals/{id}/votes": {
+  "/api/governance/proposals/{proposalId}/votes": {
     get: {
       tags: ["Governance"],
       summary: "Get votes for a proposal",
       parameters: [
-        { name: "id", in: "path", required: true, schema: { type: "string" } },
-        { name: "limit", in: "query", schema: { type: "integer", default: 50 } },
-        { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
+        proposalIdParam,
+        { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 100 } },
+        { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
       ],
       responses: {
         "200": {
           description: "Votes list",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  success: { type: "boolean" },
-                  data: {
-                    type: "object",
-                    properties: {
-                      votes: { type: "array", items: { $ref: "#/components/schemas/GovernanceVoteRecord" } },
-                      total: { type: "integer" },
-                    },
-                  },
+          content: json(legacyOk({
+            type: "object",
+            properties: {
+              votes: { type: "array", items: ref("GovernanceVoteRecord") },
+              total: { type: "integer" },
+              limit: { type: "integer" },
+              offset: { type: "integer" },
+            },
+            required: ["votes", "total", "limit", "offset"],
+          })),
+        },
+        "400": validationError,
+        "404": legacyError("Proposal not found"),
+        "500": legacyError("Server error"),
+      },
+    },
+  },
+  "/api/governance/proposals/{proposalId}/execution": {
+    get: {
+      tags: ["Governance"],
+      summary: "Proposal execution status",
+      parameters: [proposalIdParam],
+      responses: {
+        "200": {
+          description: "Execution status",
+          content: json(legacyOk({
+            type: "object",
+            properties: {
+              proposalId: { type: "integer" },
+              status: { type: "string" },
+              executedAt: { type: "string", format: "date-time", nullable: true },
+              executions: { type: "array", items: ref("ProposalExecutionRecord") },
+              isExecuted: { type: "boolean" },
+              canExecute: { type: "boolean" },
+            },
+            required: ["proposalId", "status", "executedAt", "executions", "isExecuted", "canExecute"],
+          })),
+        },
+        "400": validationError,
+        "404": legacyError("Proposal not found"),
+        "500": legacyError("Server error"),
+      },
+    },
+  },
+  "/api/governance/queue": {
+    get: {
+      tags: ["Governance"],
+      summary: "Queued proposals grouped by type (FIFO)",
+      parameters: [
+        { name: "proposalType", in: "query", schema: { type: "string", enum: ["PARAMETER_CHANGE", "ADMIN_TRANSFER", "TREASURY_SPEND", "CONTRACT_UPGRADE", "CUSTOM"] } },
+      ],
+      responses: {
+        "200": {
+          description: "Queue snapshot",
+          content: json(legacyOk({
+            type: "object",
+            properties: {
+              total: { type: "integer" },
+              queues: { type: "object", additionalProperties: { type: "array", items: ref("QueuedProposal") } },
+            },
+            required: ["total", "queues"],
+          })),
+        },
+        "400": validationError,
+        "500": legacyError("Server error"),
+      },
+    },
+  },
+  "/api/governance/stats": {
+    get: {
+      tags: ["Governance"],
+      summary: "Aggregate governance statistics",
+      responses: {
+        "200": { description: "Governance stats", content: json(legacyOk(ref("GovernanceStats"))) },
+        "500": legacyError("Server error"),
+      },
+    },
+  },
+  "/api/governance/voters/{address}": {
+    get: {
+      tags: ["Governance"],
+      summary: "Voting history and stats for an address",
+      parameters: [{ $ref: "#/components/parameters/AddressParam" }],
+      responses: {
+        "200": { description: "Voter stats", content: json(legacyOk(ref("VoterStats"))) },
+        "500": legacyError("Server error"),
+      },
+    },
+  },
+  "/api/governance/events/ingest": {
+    post: {
+      tags: ["Governance"],
+      summary: "Ingest raw governance contract events",
+      requestBody: {
+        required: true,
+        content: json({ type: "object", properties: { events: { type: "array", items: { type: "object" } } }, required: ["events"] }),
+      },
+      responses: {
+        "200": {
+          description: "Per-event ingestion results",
+          content: json(legacyOk({
+            type: "object",
+            properties: {
+              processed: { type: "integer" },
+              results: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { success: { type: "boolean" }, event: { type: "string" }, error: { type: "string" } },
+                  required: ["success"],
                 },
               },
             },
-          },
+            required: ["processed", "results"],
+          })),
         },
+        "400": legacyError("`events` is not an array"),
+        "500": legacyError("Server error"),
       },
     },
   },
@@ -545,65 +1016,75 @@ const paths: OpenAPIObject["paths"] = {
     },
   },
 
-  // Streams
-  "/api/streams/stats/{address}": {
+  // Streams (off-chain payment-stream metadata)
+  "/api/streams/{streamId}/metadata": {
     get: {
       tags: ["Streams"],
-      summary: "Stream statistics for an address or global",
-      parameters: [{ name: "address", in: "path", required: false, schema: { type: "string" } }],
-      responses: { "200": { description: "Stream stats" } },
+      summary: "Off-chain metadata for a stream",
+      parameters: [{ name: "streamId", in: "path", required: true, schema: { type: "string", pattern: "^\\d+$" } }],
+      responses: {
+        "200": {
+          description: "Stream metadata, or `data: null` when none has been set",
+          content: json(envelope({ allOf: [ref("StreamRecord")], nullable: true })),
+        },
+        "400": apiError("Invalid stream ID"),
+        "500": apiError("Server error"),
+      },
+    },
+    put: {
+      tags: ["Streams"],
+      summary: "Create or update stream metadata (creator only)",
+      security: [{ BearerAuth: [] }],
+      parameters: [{ name: "streamId", in: "path", required: true, schema: { type: "string", pattern: "^\\d+$" } }],
+      requestBody: { required: true, content: json(ref("StreamMetadataInput")) },
+      responses: {
+        "200": { description: "Updated metadata", content: json(envelope(ref("StreamRecord"))) },
+        "400": orTenantError("Invalid stream ID or body, or missing/invalid tenant context", "ApiErrorEnvelope"),
+        "401": apiError("Authentication required"),
+        "403": apiError("Caller is not the stream creator"),
+        "500": apiError("Server error"),
+      },
     },
   },
   "/api/streams/creator/{address}": {
     get: {
       tags: ["Streams"],
-      summary: "Streams created by address",
-      parameters: [
-        { name: "address", in: "path", required: true, schema: { type: "string" } },
-        { name: "status", in: "query", schema: { type: "string", enum: ["CREATED", "ACTIVE", "COMPLETED", "CANCELLED"] } },
-        { name: "limit", in: "query", schema: { type: "integer", default: 50 } },
-        { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
-      ],
-      responses: { "200": { description: "Stream list" } },
+      summary: "Stream metadata for streams created by address",
+      parameters: [{ $ref: "#/components/parameters/AddressParam" }],
+      responses: {
+        "200": { description: "Stream metadata list", content: json(envelope({ type: "array", items: ref("StreamRecord") })) },
+        "500": apiError("Server error"),
+      },
     },
   },
   "/api/streams/recipient/{address}": {
     get: {
       tags: ["Streams"],
-      summary: "Streams where address is the recipient",
-      parameters: [
-        { name: "address", in: "path", required: true, schema: { type: "string" } },
-        { name: "status", in: "query", schema: { type: "string" } },
-        { name: "limit", in: "query", schema: { type: "integer", default: 50 } },
-        { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
-      ],
-      responses: { "200": { description: "Stream list" } },
-    },
-  },
-  "/api/streams/{id}": {
-    get: {
-      tags: ["Streams"],
-      summary: "Get stream by on-chain ID",
-      parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+      summary: "Stream metadata for streams where address is the recipient",
+      parameters: [{ $ref: "#/components/parameters/AddressParam" }],
       responses: {
-        "200": { description: "Stream detail" },
-        "404": { description: "Not found" },
+        "200": { description: "Stream metadata list", content: json(envelope({ type: "array", items: ref("StreamRecord") })) },
+        "500": apiError("Server error"),
       },
     },
   },
 
-  // Vaults
+  // Vaults (on-chain stream projection)
   "/api/vaults/creator/{address}": {
     get: {
       tags: ["Vaults"],
       summary: "Vaults created by address",
       parameters: [
-        { name: "address", in: "path", required: true, schema: { type: "string" } },
-        { name: "status", in: "query", schema: { type: "string" } },
-        { name: "limit", in: "query", schema: { type: "integer", default: 50 } },
+        { $ref: "#/components/parameters/AddressParam" },
+        { name: "status", in: "query", schema: { type: "string", enum: ["CREATED", "CLAIMED", "CANCELLED"] } },
+        { name: "limit", in: "query", schema: { type: "integer", default: 50, maximum: 200 } },
         { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
       ],
-      responses: { "200": { description: "Vault list" } },
+      responses: {
+        "200": { description: "Vault list", content: json(envelope({ type: "array", items: ref("VaultRecord") })) },
+        "400": apiError("Invalid status"),
+        "500": apiError("Server error"),
+      },
     },
   },
   "/api/vaults/beneficiary/{address}": {
@@ -611,22 +1092,46 @@ const paths: OpenAPIObject["paths"] = {
       tags: ["Vaults"],
       summary: "Vaults where address is the beneficiary",
       parameters: [
-        { name: "address", in: "path", required: true, schema: { type: "string" } },
-        { name: "status", in: "query", schema: { type: "string" } },
-        { name: "limit", in: "query", schema: { type: "integer", default: 50 } },
+        { $ref: "#/components/parameters/AddressParam" },
+        { name: "status", in: "query", schema: { type: "string", enum: ["CREATED", "CLAIMED", "CANCELLED"] } },
+        { name: "limit", in: "query", schema: { type: "integer", default: 50, maximum: 200 } },
         { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
       ],
-      responses: { "200": { description: "Vault list" } },
+      responses: {
+        "200": { description: "Vault list", content: json(envelope({ type: "array", items: ref("VaultRecord") })) },
+        "400": apiError("Invalid status"),
+        "500": apiError("Server error"),
+      },
     },
   },
   "/api/vaults/{id}": {
     get: {
       tags: ["Vaults"],
-      summary: "Get vault by on-chain ID",
+      summary: "Get vault by on-chain stream ID",
       parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
       responses: {
-        "200": { description: "Vault detail" },
-        "404": { description: "Not found" },
+        "200": { description: "Vault detail", content: json(envelope(ref("VaultRecord"))) },
+        "400": apiError("Invalid vault ID"),
+        "404": apiError("Vault not found"),
+        "500": apiError("Server error"),
+      },
+    },
+  },
+  "/api/vaults/{id}/withdrawals": {
+    get: {
+      tags: ["Vaults"],
+      summary: "Withdrawal history for a vault",
+      parameters: [
+        { name: "id", in: "path", required: true, schema: { type: "integer" } },
+        { name: "limit", in: "query", schema: { type: "integer", default: 10, maximum: 50 } },
+        { name: "cursor", in: "query", schema: { type: "string" } },
+        { name: "status", in: "query", schema: { type: "string", enum: ["CLAIMED", "CANCELLED"] } },
+      ],
+      responses: {
+        "200": { description: "Withdrawal page", content: json(envelope(ref("VaultWithdrawalPage"))) },
+        "400": apiError("Invalid vault ID or status"),
+        "404": apiError("Vault not found"),
+        "500": apiError("Server error"),
       },
     },
   },

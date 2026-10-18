@@ -20,6 +20,8 @@
     "test:security:scanning": "vitest run src/__tests__/security.dependency-scanning.test.ts",
     "test:txn-propagation": "vitest run src/__tests__/txn-id-propagation.test.ts src/__tests__/correlation-id-propagation.test.ts --reporter=verbose",
     "test:mutation": "vitest run src/__tests__/mutation-testing.framework.test.ts",
+    "test:contract": "vitest run src/__tests__/contract src/lib/openapi/__tests__",
+    "openapi:response-schemas": "tsx scripts/generate-response-schemas.ts",
     "test:mutation:audit": "stryker run stryker.audit.conf.json",
     "lint": "eslint src --ext .ts,.tsx",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json}\"",
