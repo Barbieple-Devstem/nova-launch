@@ -1,0 +1,15 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known non-secret fixtures and documentation examples"
+paths = [
+  '''(^|/)(\.env\.example|\.env\.test)$''',
+  '''(^|/)backend/src/__tests__/fixtures/''',
+  '''(^|/)frontend/src/test/fixtures/''',
+  '''(^|/)docs/security/''',
+]
+regexes = [
+  '''(?i)change[-_ ]me[-_ ](in[-_ ]production|admin)''',
+  '''(?i)your[-_ ]secret[-_ ]key[-_ ]change[-_ ]in[-_ ]production''',
+]

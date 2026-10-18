@@ -61,6 +61,19 @@ for file in $STAGED_FILES; do
 done
 [ $SECRET_FOUND -eq 0 ] && pass "No secrets detected"
 
+# ── Optional Gitleaks staged scan ───────────────────────────────────────────
+if [ "${GITLEAKS_PRE_COMMIT:-0}" = "1" ]; then
+  info "Checking staged changes with Gitleaks..."
+  if command -v gitleaks >/dev/null 2>&1; then
+    if gitleaks protect --staged --redact --config .gitleaks.toml --baseline-path .gitleaks-baseline.json; then
+      pass "Gitleaks staged scan passed"
+    else
+      fail "Gitleaks found a potential secret. See docs/security/dependency-and-secret-scanning.md"
+    fi
+  else
+    fail "GITLEAKS_PRE_COMMIT=1 but gitleaks is not installed"
+  fi
+fi
 # ── Rust checks (staged .rs files only) ──────────────────────────────────────
 if echo "$STAGED_FILES" | grep -q "\.rs$"; then
   info "Checking Rust formatting..."
