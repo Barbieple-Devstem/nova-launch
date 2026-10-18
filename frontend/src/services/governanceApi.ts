@@ -27,6 +27,58 @@ export interface VoterInfo {
   proposalsCreated: number;
   /** Delegate address (if any) */
   delegate?: string;
+  /** Voter's own token balance, before any delegation (raw units) */
+  ownBalance?: string;
+  /** Vote power received from other holders who delegated to this voter (raw units) */
+  delegatedIn?: string;
+  /** Vote power this voter has delegated away to `delegate` (raw units) */
+  delegatedOut?: string;
+}
+
+/**
+ * Breakdown of how a voter's effective voting power is composed.
+ * All values are raw (non-decimal-adjusted) token units.
+ */
+export interface VotingPowerBreakdown {
+  ownBalance: bigint;
+  delegatedIn: bigint;
+  delegatedOut: bigint;
+  /** ownBalance + delegatedIn - delegatedOut */
+  effective: bigint;
+}
+
+function toBigInt(value: string | undefined): bigint {
+  if (!value) return 0n;
+  try {
+    return BigInt(value);
+  } catch {
+    return 0n;
+  }
+}
+
+/**
+ * Derive a voting power breakdown from voter info.
+ *
+ * Mirrors the governance contract's delegation model: a holder's own balance
+ * counts towards their power unless delegated out, and power delegated to them
+ * by others is added on top. When the backend does not supply the component
+ * fields, the reported `votingPower` is treated as the voter's own balance.
+ */
+export function getVotingPowerBreakdown(info: VoterInfo): VotingPowerBreakdown {
+  const delegatedIn = toBigInt(info.delegatedIn);
+  const delegatedOut = toBigInt(info.delegatedOut);
+  const ownBalance =
+    info.ownBalance !== undefined
+      ? toBigInt(info.ownBalance)
+      : toBigInt(info.votingPower) - delegatedIn + delegatedOut;
+  const effective = ownBalance + delegatedIn - delegatedOut;
+
+  return {
+    ownBalance,
+    delegatedIn,
+    delegatedOut,
+    effective: effective < 0n ? 0n : effective,
+  };
 }
 
 /**
@@ -53,6 +105,8 @@ export interface ExecutionEntry {
 export interface ProposalParams {
   /** Status filter */
   status?: string;
+  /** Free-text search over proposal title and description */
+  search?: string;
   /** Creator filter */
   creator?: string;
   /** Lower bound for proposal creation time */
@@ -154,6 +208,7 @@ export async function fetchProposals(params: ProposalParams = {}): Promise<Propo
   const queryParams = new URLSearchParams();
   
   if (params.status) queryParams.append('status', params.status);
+  if (params.search) queryParams.append('search', params.search);
   if (params.creator) queryParams.append('creator', params.creator);
   if (params.startDate) queryParams.append('startDate', params.startDate);
   if (params.endDate) queryParams.append('endDate', params.endDate);
@@ -373,7 +428,10 @@ export async function fetchVoterInfo(voterAddress: string): Promise<VoterInfo> {
     throw new Error(`Failed to fetch voter info: ${response.statusText}`);
   }
   
-  const data: VoterInfo = await response.json();
+  const body = await response.json();
+  // The backend wraps responses as `{ success, data }`; accept both shapes.
+  const raw = (body && typeof body === 'object' && 'data' in body ? body.data : body) as VoterInfo;
+  const data: VoterInfo = { ...raw, address: raw.address ?? voterAddress, votingPower: raw.votingPower ?? '0' };
   
   governanceCache.set(cacheKey, {
     data,

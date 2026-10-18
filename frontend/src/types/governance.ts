@@ -14,6 +14,7 @@ export enum ProposalStatus {
   ACTIVE = 'ACTIVE',
   PASSED = 'PASSED',
   REJECTED = 'REJECTED',
+  QUEUED = 'QUEUED',
   EXECUTED = 'EXECUTED',
   CANCELLED = 'CANCELLED',
   EXPIRED = 'EXPIRED',

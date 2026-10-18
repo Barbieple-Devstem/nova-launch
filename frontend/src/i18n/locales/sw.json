@@ -142,11 +142,17 @@
   },
   "governance": {
     "title": "Utawala",
+    "search": {
+      "label": "Tafuta mapendekezo",
+      "placeholder": "Tafuta kwa kichwa au maelezo",
+      "clear": "Futa utafutaji"
+    },
     "statusFilter": {
       "all": "Zote",
       "active": "Hai",
       "passed": "Zimepitishwa",
       "rejected": "Zimekataliwa",
+      "queued": "Kwenye foleni",
       "executed": "Zimetekelezwa",
       "cancelled": "Zimeghairiwa",
       "expired": "Zimeisha muda"

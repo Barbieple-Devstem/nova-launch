@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   acceptUpdate as acceptServiceWorkerUpdate,
   isInstalledPWA,
   isUpdateAvailable,
+  reloadApp as reloadPwaApp,
   showInstallPrompt as showPwaInstallPrompt,
 } from "../services/pwa";
 
 interface PWAState {
   updateAvailable: boolean;
+  /** True when the user chose "Later" on the current update prompt */
+  updateDismissed: boolean;
   installPromptAvailable: boolean;
   isInstalled: boolean;
   isOnline: boolean;
@@ -18,10 +21,13 @@ interface PWAState {
  */
 export function usePWA(): PWAState & {
   acceptUpdate: () => Promise<boolean>;
+  reloadApp: () => Promise<void>;
+  dismissUpdate: () => void;
   showInstallPrompt: () => Promise<boolean>;
 } {
   const [state, setState] = useState<PWAState>({
     updateAvailable: isUpdateAvailable(),
+    updateDismissed: false,
     installPromptAvailable: false,
     isInstalled: isInstalledPWA(),
     isOnline: navigator.onLine,
@@ -33,6 +39,8 @@ export function usePWA(): PWAState & {
       setState((prev) => ({
         ...prev,
         updateAvailable: true,
+        // A newer version arriving re-surfaces the prompt
+        updateDismissed: false,
       }));
     };
 
@@ -89,9 +97,17 @@ export function usePWA(): PWAState & {
     };
   }, []);
 
-  const acceptUpdate = async (): Promise<boolean> => {
+  const acceptUpdate = useCallback(async (): Promise<boolean> => {
     return acceptServiceWorkerUpdate();
-  };
+  }, []);
+
+  const reloadApp = useCallback(async (): Promise<void> => {
+    await reloadPwaApp();
+  }, []);
+
+  const dismissUpdate = useCallback(() => {
+    setState((prev) => ({ ...prev, updateDismissed: true }));
+  }, []);
 
   const showInstallPrompt = async (): Promise<boolean> => {
     const installed = await showPwaInstallPrompt();
@@ -108,6 +124,8 @@ export function usePWA(): PWAState & {
   return {
     ...state,
     acceptUpdate,
+    reloadApp,
+    dismissUpdate,
     showInstallPrompt,
   };
 }

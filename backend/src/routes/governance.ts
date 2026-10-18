@@ -20,7 +20,13 @@ const governanceParser = new GovernanceEventParser(prisma);
  *         name: status
  *         schema:
  *           type: string
- *           enum: [ACTIVE, PASSED, REJECTED, EXECUTED, CANCELLED, EXPIRED]
+ *           enum: [ACTIVE, PASSED, REJECTED, QUEUED, EXECUTED, CANCELLED, EXPIRED]
+ *       - in: query
+ *         name: search
+ *         description: Case-insensitive substring match on proposal title or description
+ *         schema:
+ *           type: string
+ *           maxLength: 200
  *       - in: query
  *         name: proposalType
  *         schema:
@@ -74,12 +80,14 @@ router.get(
     query('offset').optional().isInt({ min: 0 }).toInt(),
     query('sortBy').optional().isIn(['createdAt', 'startTime', 'endTime']),
     query('sortOrder').optional().isIn(['asc', 'desc']),
+    query('search').optional().isString().trim().isLength({ max: 200 }),
     validate,
   ],
   async (req: Request, res: Response) => {
   try {
     const {
       status,
+      search,
       proposalType,
       tokenId,
       proposer,
@@ -93,6 +101,13 @@ router.get(
 
     if (status) {
       where.status = status;
+    }
+
+    if (typeof search === 'string' && search.length > 0) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
     }
 
     if (proposalType) {

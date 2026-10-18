@@ -1,14 +1,25 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { usePWA } from "../../hooks/usePWA";
 
+/**
+ * Prompts the user when a new service worker version is waiting. The app is
+ * only reloaded when the user clicks "Reload"; "Later" hides the prompt until
+ * another update arrives.
+ */
 export function PWAUpdateNotification() {
-  const { updateAvailable, acceptUpdate } = usePWA();
+  const { updateAvailable, updateDismissed, reloadApp, dismissUpdate } = usePWA();
+  const [reloading, setReloading] = useState(false);
 
-  const handleUpdate = useCallback(async () => {
-    await acceptUpdate();
-  }, [acceptUpdate]);
+  const handleReload = useCallback(async () => {
+    setReloading(true);
+    try {
+      await reloadApp();
+    } catch {
+      setReloading(false);
+    }
+  }, [reloadApp]);
 
-  if (!updateAvailable) {
+  if (!updateAvailable || updateDismissed) {
     return null;
   }
 
@@ -16,22 +27,32 @@ export function PWAUpdateNotification() {
     <div
       className="fixed bottom-4 right-4 bg-blue-50 border border-blue-200 rounded-lg shadow-lg p-4 max-w-sm z-50"
       role="alert"
-      aria-live="assertive"
+      aria-live="polite"
+      data-testid="pwa-update-notification"
     >
-      <div className="flex items-start gap-3">
-        <div className="flex-1">
-          <h3 className="font-semibold text-blue-900">Update Available</h3>
-          <p className="text-sm text-blue-700 mt-1">
-            A new version of Nova Launch is available. Restart to get the latest
-            features.
-          </p>
-        </div>
+      <h3 className="font-semibold text-blue-900">Update available</h3>
+      <p className="text-sm text-blue-700 mt-1">
+        A new version of Nova Launch is ready. Reload to get the latest
+        features. Any unsaved form input on this page will be lost.
+      </p>
+      <div className="flex justify-end gap-3 mt-3">
         <button
-          onClick={handleUpdate}
-          className="text-blue-600 hover:text-blue-700 font-medium text-sm whitespace-nowrap ml-2"
-          aria-label="Restart app to apply update"
+          type="button"
+          onClick={dismissUpdate}
+          className="text-sm text-blue-700 hover:text-blue-900"
+          data-testid="pwa-update-later"
         >
-          Restart
+          Later
+        </button>
+        <button
+          type="button"
+          onClick={handleReload}
+          disabled={reloading}
+          className="text-sm font-medium bg-blue-600 text-white rounded px-3 py-1 hover:bg-blue-700 disabled:opacity-60"
+          aria-label="Reload app to apply update"
+          data-testid="pwa-update-reload"
+        >
+          {reloading ? "Reloading…" : "Reload"}
         </button>
       </div>
     </div>

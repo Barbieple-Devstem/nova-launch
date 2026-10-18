@@ -7,6 +7,8 @@ let deferredPrompt: BeforeInstallPromptEvent | null = null;
 let updateAvailable = false;
 let registrationRef: ServiceWorkerRegistration | null = null;
 let hasControllerReloaded = false;
+/** Set when the user asks to apply an update; gates the controllerchange reload. */
+let reloadRequested = false;
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!("serviceWorker" in navigator)) {
@@ -33,7 +35,9 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     }, 6 * 60 * 60 * 1000);
 
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (hasControllerReloaded) {
+      // Only reload when the user accepted the update. A controller change on
+      // first install (clients.claim) must not reload the page out from under them.
+      if (!reloadRequested || hasControllerReloaded) {
         return;
       }
       hasControllerReloaded = true;
@@ -72,16 +76,35 @@ function notifyUpdateAvailable(): void {
   window.dispatchEvent(event);
 }
 
+/**
+ * Activate the waiting service worker. The page reloads once the new worker
+ * takes control. Must only be called in response to a user action.
+ */
 export async function acceptUpdate(): Promise<boolean> {
+  if (!("serviceWorker" in navigator)) {
+    return false;
+  }
   const registration = registrationRef ?? (await navigator.serviceWorker.getRegistration());
   if (!registration?.waiting) {
     return false;
   }
 
+  reloadRequested = true;
   registration.waiting.postMessage({
     type: "SKIP_WAITING",
   });
   return true;
+}
+
+/**
+ * User-initiated reload: applies a waiting update if there is one (the
+ * controllerchange handler then reloads), otherwise reloads immediately.
+ */
+export async function reloadApp(): Promise<void> {
+  const activated = await acceptUpdate();
+  if (!activated) {
+    window.location.reload();
+  }
 }
 
 export function captureInstallPrompt(): void {

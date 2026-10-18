@@ -142,11 +142,17 @@
   },
   "governance": {
     "title": "Shugabanci",
+    "search": {
+      "label": "Nemi shawarwari",
+      "placeholder": "Nemi ta take ko bayani",
+      "clear": "Share bincike"
+    },
     "statusFilter": {
       "all": "Duka",
       "active": "Masu aiki",
       "passed": "An amince",
       "rejected": "An ƙi",
+      "queued": "A layi",
       "executed": "An aiwatar",
       "cancelled": "An soke",
       "expired": "Sun ƙare"

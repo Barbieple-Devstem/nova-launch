@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_NETWORK: 'testnet' | 'mainnet'
   readonly VITE_FACTORY_CONTRACT_ID: string
   readonly VITE_API_BASE_URL?: string
+  readonly VITE_GOVERNANCE_DOCS_URL?: string
 }
 
 interface ImportMeta {

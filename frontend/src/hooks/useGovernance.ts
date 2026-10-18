@@ -4,6 +4,7 @@ import {
   submitProposal,
   fetchVoterInfo,
   invalidateProposalListCache,
+  type VoterInfo,
 } from '../services/governanceApi';
 
 export type GovernanceStatus = 'idle' | 'submitting' | 'success' | 'error';
@@ -22,6 +23,8 @@ export function useGovernance(_tokenAddress: string) {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [proposalId, setProposalId] = useState<string | null>(null);
   const [votingPower, setVotingPower] = useState<string | null>(null);
+  const [voterInfo, setVoterInfo] = useState<VoterInfo | null>(null);
+  const [isLoadingVoterInfo, setIsLoadingVoterInfo] = useState(false);
 
   const createProposal = async (
     params: CreateProposalInput,
@@ -56,15 +59,23 @@ export function useGovernance(_tokenAddress: string) {
   };
 
   const checkGovernancePower = async (wallet: WalletState): Promise<boolean> => {
-    if (!wallet.connected || !wallet.address) return false;
+    if (!wallet.connected || !wallet.address) {
+      setVoterInfo(null);
+      return false;
+    }
 
+    setIsLoadingVoterInfo(true);
     try {
       const info = await fetchVoterInfo(wallet.address);
       const power = info.votingPower;
       setVotingPower(power);
+      setVoterInfo(info);
       return BigInt(power) > 0n;
     } catch {
+      setVoterInfo(null);
       return false;
+    } finally {
+      setIsLoadingVoterInfo(false);
     }
   };
 
@@ -84,6 +95,8 @@ export function useGovernance(_tokenAddress: string) {
     txHash,
     proposalId,
     votingPower,
+    voterInfo,
+    isLoadingVoterInfo,
     isSubmitting: status === 'submitting',
   };
 }
