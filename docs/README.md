@@ -58,6 +58,40 @@
 
 ---
 
+## Frontend Feature Documentation
+
+### Webhook Management
+
+- **[WEBHOOK_BULK_ACTIONS.md](./WEBHOOK_BULK_ACTIONS.md)**
+  — Issue [#2162](https://github.com/Emmyt24/nova-launch/issues/2162)
+  - Checkbox multi-selection on the webhook list
+  - Batch enable, disable, and delete with confirmation dialog
+  - Partial-failure feedback and API integration notes
+
+- **[WEBHOOK_DELIVERY_LOG.md](./WEBHOOK_DELIVERY_LOG.md)**
+  — Issue [#2163](https://github.com/Emmyt24/nova-launch/issues/2163)
+  - Per-subscription delivery log with status, HTTP code, and attempt count
+  - Status and date-range filter controls
+  - Manual redeliver action and dead-letter queue deep links
+
+### Vaults UI
+
+- **[VAULT_BALANCE_CHART.md](./VAULT_BALANCE_CHART.md)**
+  — Issue [#2164](https://github.com/Emmyt24/nova-launch/issues/2164)
+  - Time-series line chart of vault balance (7d / 30d / 90d ranges)
+  - Accessible data table fallback
+  - Loading, empty, and error state handling
+
+### Streams UI
+
+- **[STREAM_PROGRESS_BAR.md](./STREAM_PROGRESS_BAR.md)**
+  — Issue [#2165](https://github.com/Emmyt24/nova-launch/issues/2165)
+  - Progress bar and remaining-time display on stream cards
+  - State-aware rendering: active, paused, cancelled, completed
+  - ARIA progressbar implementation and `prefers-reduced-motion` support
+
+---
+
 ## Incident Response & Runbooks
 
 Operational runbooks backing Prometheus alert rules:
