@@ -5,6 +5,7 @@
 | Workflow                        | Trigger                   | Purpose                                                     |
 | ------------------------------- | ------------------------- | ----------------------------------------------------------- |
 | `backend-ci.yml`                | push/PR to `backend/**`   | Lint, type-check, test, build                               |
+| `backend-reliability-nightly.yml` | nightly/manual/targeted PR | Backup restore, pagination, Redis fail-open, and event-schema contracts |
 | `ci-cd-pipeline.yml`            | push/PR to main/develop   | Full Rust contract pipeline + deploy                        |
 | `security-scanning.yml`         | push/PR/daily cron        | Vulnerability scanning (npm, Snyk, CodeQL, Trivy, Gitleaks) |
 | `dependency-review.yml`         | PR to main/develop        | Block PRs introducing vulnerable/GPL deps                   |

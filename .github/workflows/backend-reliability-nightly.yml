@@ -1,0 +1,45 @@
+name: Backend Reliability Nightly
+
+on:
+  schedule:
+    - cron: "15 2 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "backend/src/services/backup*.ts"
+      - "backend/src/lib/pagination*.ts"
+      - "backend/src/middleware/rateLimiter*.ts"
+      - "backend/src/__tests__/event-schema-parser-contract.test.ts"
+      - "event-schemas/**"
+      - "docs/BACKUP_RESTORE_VERIFICATION.md"
+      - "docs/EVENT_SCHEMA_CONTRACT_TESTS.md"
+      - ".github/workflows/backend-reliability-nightly.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  reliability-tests:
+    name: Backup, pagination, rate-limit, and schema contracts
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Prisma Client
+        run: npx prisma generate
+      - name: Run reliability and contract tests
+        run: >-
+          npx vitest run
+          src/services/backup-restore-verification.test.ts
+          src/lib/pagination.property.test.ts
+          src/middleware/rateLimiter.redis-unavailable.test.ts
+          src/__tests__/event-schema-parser-contract.test.ts
