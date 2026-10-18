@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from 'react';
 import { Tooltip } from '../UI/Tooltip';
 import { formatXLM } from '../../utils/formatting';
 
@@ -7,6 +8,9 @@ interface FeeBreakdownProps {
     currency?: 'XLM' | 'USD';
     xlmToUsdRate?: number;
     className?: string;
+    onRefresh?: () => void | Promise<void>;
+    refreshIntervalMs?: number;
+    staleAfterMs?: number;
 }
 
 interface FeeRowProps {
@@ -54,8 +58,37 @@ export function FeeBreakdown({
     currency = 'XLM',
     xlmToUsdRate,
     className = '',
+    onRefresh,
+    refreshIntervalMs = 30_000,
+    staleAfterMs = 120_000,
 }: FeeBreakdownProps) {
     const totalFee = baseFee + metadataFee;
+    const [lastUpdated, setLastUpdated] = useState(() => Date.now());
+    const [now, setNow] = useState(() => Date.now());
+    const [refreshing, setRefreshing] = useState(false);
+
+    const refresh = useCallback(async () => {
+        if (!onRefresh) return;
+        setRefreshing(true);
+        try {
+            await onRefresh();
+            setLastUpdated(Date.now());
+        } finally {
+            setRefreshing(false);
+        }
+    }, [onRefresh]);
+
+    useEffect(() => {
+        if (!onRefresh) return;
+        const refreshTimer = window.setInterval(() => void refresh(), refreshIntervalMs);
+        const clockTimer = window.setInterval(() => setNow(Date.now()), 15_000);
+        return () => {
+            window.clearInterval(refreshTimer);
+            window.clearInterval(clockTimer);
+        };
+    }, [onRefresh, refresh, refreshIntervalMs]);
+
+    const isStale = now - lastUpdated > staleAfterMs;
 
     const formatAmount = (amount: number): string => {
         if (currency === 'USD' && xlmToUsdRate) {
@@ -67,6 +100,11 @@ export function FeeBreakdown({
     return (
         <div className={`bg-gray-50 rounded-lg p-4 border border-gray-200 ${className}`}>
             <h3 className="text-sm font-medium text-gray-900 mb-3">Fee Breakdown</h3>
+            <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
+                <span>Updated {new Date(lastUpdated).toLocaleTimeString()}</span>
+                {onRefresh && <button type="button" onClick={() => void refresh()} disabled={refreshing} className="underline">{refreshing ? 'Refreshing…' : 'Refresh'}</button>}
+            </div>
+            {isStale && <p className="mb-2 text-xs text-amber-700" role="alert">Fee estimate is over two minutes old. Refresh before submitting.</p>}
 
             <div className="space-y-1">
                 <FeeRow

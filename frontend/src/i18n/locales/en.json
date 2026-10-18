@@ -142,6 +142,7 @@
   },
   "governance": {
     "title": "Governance",
+    "quorumProgress": "Quorum Progress",
     "statusFilter": {
       "all": "All",
       "active": "Active",

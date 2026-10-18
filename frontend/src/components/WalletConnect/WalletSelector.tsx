@@ -32,6 +32,7 @@ export function WalletSelector({ isOpen, onClose, onSelect, isConnecting }: Wall
     const [connectingId, setConnectingId] = useState<string | null>(null);
     const dialogRef = useRef<HTMLDivElement>(null);
     const closeBtnRef = useRef<HTMLButtonElement>(null);
+    const triggerRef = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -52,14 +53,38 @@ export function WalletSelector({ isOpen, onClose, onSelect, isConnecting }: Wall
     // Focus the close button when modal opens
     useEffect(() => {
         if (isOpen) {
+            triggerRef.current = document.activeElement as HTMLElement | null;
             setTimeout(() => closeBtnRef.current?.focus(), 50);
         }
+        return () => triggerRef.current?.focus();
     }, [isOpen]);
 
     // Trap focus inside modal
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                onClose();
+                return;
+            }
+            const focusable = Array.from(
+                dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])') ?? []
+            );
+            if (focusable.length === 0) return;
+            const current = focusable.indexOf(document.activeElement as HTMLElement);
+            if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                focusable[(current + 1 + focusable.length) % focusable.length].focus();
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                focusable[(current - 1 + focusable.length) % focusable.length].focus();
+            } else if (e.key === 'Tab') {
+                const next = e.shiftKey ? current - 1 : current + 1;
+                if (next < 0 || next >= focusable.length) {
+                    e.preventDefault();
+                    focusable[e.shiftKey ? focusable.length - 1 : 0].focus();
+                }
+            }
         },
         [onClose]
     );
@@ -125,7 +150,7 @@ export function WalletSelector({ isOpen, onClose, onSelect, isConnecting }: Wall
                 </div>
 
                 {/* Wallet list */}
-                <div className="p-3 space-y-1" role="list" aria-label="Available wallets">
+                <div className="p-3 space-y-1" role="listbox" aria-label="Available wallets">
                     {loadingWallets ? (
                         <div className="flex items-center justify-center py-8 text-sm text-gray-500">
                             <svg className="animate-spin h-4 w-4 mr-2 text-blue-500" viewBox="0 0 24 24">
@@ -142,7 +167,7 @@ export function WalletSelector({ isOpen, onClose, onSelect, isConnecting }: Wall
                             const isInstalled = wallet.isAvailable;
 
                             return (
-                                <div key={wallet.id} role="listitem">
+                                <div key={wallet.id} role="option" aria-selected={connectingId === wallet.id}>
                                     <button
                                         onClick={() => void handleWalletSelect(wallet)}
                                         disabled={isConnecting}
