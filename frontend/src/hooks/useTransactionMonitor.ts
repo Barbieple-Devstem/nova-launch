@@ -42,6 +42,9 @@ export function useTransactionMonitor(): UseTransactionMonitorReturn {
 
     const stopMonitoring = useCallback(() => {
         setMonitoring(false);
+        // The hook tracks one transaction at a time, so clearing the service
+        // cancels its pending poll timer and lets the same hash be restarted.
+        monitorRef.current?.destroy();
         if (progressIntervalRef.current) {
             clearInterval(progressIntervalRef.current);
             progressIntervalRef.current = null;
@@ -85,6 +88,12 @@ export function useTransactionMonitor(): UseTransactionMonitorReturn {
         if (!monitorRef.current) {
             console.error('Transaction monitor not initialized');
             return;
+        }
+
+        // Cancel any previous session so restarting never leaves two poll loops running.
+        monitorRef.current.destroy();
+        if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
         }
 
         setMonitoring(true);
