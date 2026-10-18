@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { DeploymentResult, TokenDeployParams, WalletState } from '../../types';
 import { useTokenDeploy } from '../../hooks/useTokenDeploy';
 import { useFactoryFees } from '../../hooks/useFactoryFees';
@@ -8,7 +8,7 @@ import { formatXLM, truncateAddress } from '../../utils/formatting';
 import { BasicInfoStep, type BasicInfoData } from './BasicInfoStep';
 import { TemplateSelector } from './TemplateSelector';
 import { FeeDisplay } from './FeeDisplay';
-import { Button, ProgressBar, LoadingButton } from '../UI';
+import { Button, CopyButton, ProgressBar, LoadingButton } from '../UI';
 import { analytics } from '../../services/analytics';
 import { Input } from '../UI/Input';
 import type { TokenTemplate } from '../../config/tokenTemplates';
@@ -22,6 +22,17 @@ interface TokenDeployFormProps {
 }
 
 type FormStep = 'template' | 'basic' | 'review';
+const DRAFT_KEY = 'nova_token_deploy_draft';
+type SafeDraft = Omit<BasicInfoData, 'adminWallet'>;
+
+function loadDraft(): SafeDraft | null {
+    try {
+        const value = localStorage.getItem(DRAFT_KEY);
+        return value ? JSON.parse(value) as SafeDraft : null;
+    } catch {
+        return null;
+    }
+}
 
 export function TokenDeployForm({
     wallet,
@@ -36,6 +47,18 @@ export function TokenDeployForm({
     const [metadataImage, setMetadataImage] = useState<File | null>(null);
     const [localError, setLocalError] = useState<string | null>(null);
     const [result, setResult] = useState<DeploymentResult | null>(null);
+    const [draft, setDraft] = useState<SafeDraft | null>(loadDraft);
+
+    useEffect(() => {
+        if (!draft) return;
+        const timer = window.setTimeout(() => localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)), 400);
+        return () => window.clearTimeout(timer);
+    }, [draft]);
+
+    const updateDraft = useCallback((data: BasicInfoData) => {
+        const { adminWallet: _excluded, ...safeDraft } = data;
+        setDraft(safeDraft);
+    }, []);
 
     const { baseFee, metadataFee, loading: feesLoading, error: feesError, isFallback, refresh: refreshFees } =
         useFactoryFees(wallet.network);
@@ -111,6 +134,8 @@ export function TokenDeployForm({
             const deployment = await deploy(params);
             setTxContext({ txHash: deployment.transactionHash });
             setResult(deployment);
+            localStorage.removeItem(DRAFT_KEY);
+            setDraft(null);
         } catch {
             setResult(null);
         }
@@ -171,10 +196,12 @@ export function TokenDeployForm({
                     <div>
                         <p className="text-xs uppercase tracking-wide text-gray-500">Token Address</p>
                         <p className="break-all text-sm font-medium text-gray-900">{result.tokenAddress}</p>
+                        <CopyButton value={result.tokenAddress} label="Copy token address" />
                     </div>
                     <div>
                         <p className="text-xs uppercase tracking-wide text-gray-500">Transaction Hash</p>
                         <p className="break-all text-sm text-gray-900">{result.transactionHash}</p>
+                        <CopyButton value={result.transactionHash} label="Copy transaction hash" />
                     </div>
                     <div>
                         <p className="text-xs uppercase tracking-wide text-gray-500">Total Fee</p>
@@ -192,6 +219,15 @@ export function TokenDeployForm({
     if (step === 'template') {
         return (
             <div data-tutorial="token-form">
+                {draft && (
+                    <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                        <p>A saved deployment draft is available.</p>
+                        <div className="mt-2 flex gap-2">
+                            <Button size="sm" onClick={() => setStep('basic')}>Restore draft</Button>
+                            <Button size="sm" variant="outline" onClick={() => { localStorage.removeItem(DRAFT_KEY); setDraft(null); }}>Discard</Button>
+                        </div>
+                    </div>
+                )}
                 <TemplateSelector
                     onSelect={handleTemplateSelect}
                     onSkip={handleTemplateSkip}
@@ -219,6 +255,7 @@ export function TokenDeployForm({
                 adminWallet: basicInfo?.adminWallet || wallet.address,
               }
             : basicInfo || undefined;
+        const draftDefaults = draft ? { ...draft, adminWallet: wallet.address ?? '' } : defaults;
 
         return (
             <div data-tutorial="token-form">
@@ -239,7 +276,8 @@ export function TokenDeployForm({
                 )}
                 <BasicInfoStep
                     onNext={handleBasicNext}
-                    initialData={defaults}
+                    initialData={draftDefaults}
+                    onChange={updateDraft}
                 />
             </div>
         );

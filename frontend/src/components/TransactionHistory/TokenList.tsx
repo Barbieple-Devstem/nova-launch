@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button, SkeletonList } from '../UI';
 import { TokenCard } from './TokenCard';
 import { NoTokensEmptyState, NoWalletEmptyState } from '../UI';
@@ -63,6 +63,14 @@ export function TokenList({ wallet }: TokenListProps) {
       setIsExporting(false);
     });
   }, [history]);
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('nova_transaction_history_scroll');
+    if (saved) requestAnimationFrame(() => window.scrollTo(0, Number(saved)));
+    const remember = () => sessionStorage.setItem('nova_transaction_history_scroll', String(window.scrollY));
+    window.addEventListener('pagehide', remember);
+    return () => window.removeEventListener('pagehide', remember);
+  }, []);
 
   const handleSearch = useCallback(
     (e: React.FormEvent) => {

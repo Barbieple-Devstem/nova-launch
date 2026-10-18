@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Input } from '../UI/Input';
 import { Button } from '../UI/Button';
 import {
@@ -9,10 +9,12 @@ import {
     isValidStellarAddress,
 } from '../../utils/validation';
 import { getDeploymentFeeBreakdown } from '../../utils/feeCalculation';
+import { searchTokens } from '../../services/tokenSearchApi';
 
 interface BasicInfoStepProps {
     onNext: (data: BasicInfoData) => void;
     initialData?: BasicInfoData;
+    onChange?: (data: BasicInfoData) => void;
 }
 
 export interface BasicInfoData {
@@ -23,7 +25,7 @@ export interface BasicInfoData {
     adminWallet: string;
 }
 
-export function BasicInfoStep({ onNext, initialData }: BasicInfoStepProps) {
+export function BasicInfoStep({ onNext, initialData, onChange }: BasicInfoStepProps) {
     const [formData, setFormData] = useState<BasicInfoData>(
         initialData || {
             name: '',
@@ -36,6 +38,35 @@ export function BasicInfoStep({ onNext, initialData }: BasicInfoStepProps) {
 
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [touched, setTouched] = useState<Record<string, boolean>>({});
+    const [symbolMatches, setSymbolMatches] = useState<string[]>([]);
+
+    useEffect(() => {
+        onChange?.(formData);
+    }, [formData, onChange]);
+
+    useEffect(() => {
+        const symbol = formData.symbol.trim();
+        if (symbol.length < 2 || !isValidTokenSymbol(symbol)) {
+            setSymbolMatches([]);
+            return;
+        }
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => {
+            searchTokens({ q: symbol, limit: 5 })
+                .then((response) => {
+                    if (!controller.signal.aborted) {
+                        setSymbolMatches(response.data.map((token) => token.symbol).filter((candidate) => candidate !== symbol));
+                    }
+                })
+                .catch(() => {
+                    if (!controller.signal.aborted) setSymbolMatches([]);
+                });
+        }, 350);
+        return () => {
+            controller.abort();
+            window.clearTimeout(timer);
+        };
+    }, [formData.symbol]);
 
     const validateField = (name: keyof BasicInfoData, value: string | number): string => {
         switch (name) {
@@ -148,6 +179,11 @@ export function BasicInfoStep({ onNext, initialData }: BasicInfoStepProps) {
                 maxLength={12}
                 required
             />
+            {symbolMatches.length > 0 && (
+                <p className="-mt-4 text-sm text-amber-700" role="status">
+                    Similar symbols already indexed: {symbolMatches.join(', ')}. You may continue, but verify the identity is clear.
+                </p>
+            )}
 
             <Input
                 label="Decimals"
