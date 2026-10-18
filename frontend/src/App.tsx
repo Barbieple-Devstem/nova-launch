@@ -9,7 +9,6 @@ import { ResourceCostConfirmDialog } from "./components/ResourceCost";
 import { IntegrationVersionBanner } from "./components/IntegrationVersionBanner";
 import type { CompatibilityInfo } from "./components/IntegrationVersionBanner";
 import { LanguageSelector } from "./components/LanguageSelector";
-import { ThemeToggle } from "./components/UI/ThemeToggle";
 
 // Lazy load pages
 const LandingPage = lazy(() => import("./pages/LandingPage"));

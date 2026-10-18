@@ -18,7 +18,6 @@ export { ProgressBar } from './ProgressBar';
 export { LoadingOverlay } from './LoadingOverlay';
 export { LoadingButton } from './LoadingButton';
 export { ConfirmDialog } from './ConfirmDialog';
-export { ThemeToggle } from './ThemeToggle';
 export { CopyButton } from './CopyButton';
 export type { ConfirmDialogProps, ConfirmDialogAction, FeeItem } from './ConfirmDialog';
 export {
