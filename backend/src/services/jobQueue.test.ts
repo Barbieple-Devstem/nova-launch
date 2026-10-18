@@ -140,6 +140,18 @@ describe("JobQueue", () => {
 
       expect(order).toEqual([3, 2, 1]);
     });
+
+    it("eventually runs a lower-priority job under a sustained high-priority load", async () => {
+      const sq = new JobQueue(1);
+      sq.start();
+      const order: number[] = [];
+      sq.register("fair", async (job: Job<{ n: number }>) => { order.push(job.payload.n); });
+      sq.enqueue("fair", { n: 0 }, { priority: 0 });
+      for (let n = 1; n <= 7; n++) sq.enqueue("fair", { n }, { priority: 10 });
+      await flush(80);
+      sq.stop();
+      expect(order).toContain(0);
+    });
   });
 
   // ── Retry & back-off ──────────────────────────────────────────────────────

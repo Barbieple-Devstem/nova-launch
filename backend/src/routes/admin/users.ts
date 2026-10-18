@@ -4,6 +4,7 @@ import { Database } from "../../config/database";
 import { authenticateAdmin, requireSuperAdmin } from "../../middleware/auth";
 import { auditLog } from "../../middleware/auditLog";
 import { successResponse, errorResponse } from "../../utils/response";
+import { getNotificationPreferences, upsertNotificationPreferences } from "../../services/notificationPreferences";
 
 const router = Router();
 
@@ -23,6 +24,14 @@ const userUpdateSchema = z.object({
   banned: z.boolean().optional(),
   role: z.enum(["user", "admin", "super_admin"]).optional(),
 });
+
+
+const notificationPreferencesSchema = z.object({
+  emailEnabled: z.boolean(),
+  smsEnabled: z.boolean(),
+  webhookEnabled: z.boolean(),
+});
+
 
 // GET /api/admin/users - List all users
 router.get(
@@ -87,6 +96,43 @@ router.get(
           message: "Failed to fetch users",
         })
       );
+    }
+  }
+);
+
+
+// GET /api/admin/users/:id/notification-preferences
+router.get(
+  "/:id/notification-preferences",
+  authenticateAdmin,
+  async (req, res) => {
+    try {
+      const user = await Database.findUserById(req.params.id);
+      if (!user) return res.status(404).json(errorResponse({ code: "NOT_FOUND", message: "User not found" }));
+      const preferences = await getNotificationPreferences(user.id);
+      res.json(successResponse({ userId: user.id, preferences }));
+    } catch (error) {
+      console.error("Error fetching notification preferences:", error);
+      res.status(500).json(errorResponse({ code: "INTERNAL_SERVER_ERROR", message: "Failed to fetch notification preferences" }));
+    }
+  }
+);
+
+// PUT /api/admin/users/:id/notification-preferences
+router.put(
+  "/:id/notification-preferences",
+  authenticateAdmin,
+  async (req, res) => {
+    try {
+      const user = await Database.findUserById(req.params.id);
+      if (!user) return res.status(404).json(errorResponse({ code: "NOT_FOUND", message: "User not found" }));
+      const preferences = notificationPreferencesSchema.parse(req.body);
+      const saved = await upsertNotificationPreferences(user.id, preferences);
+      res.json(successResponse({ userId: user.id, preferences: saved }));
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json(errorResponse({ code: "VALIDATION_ERROR", message: "Invalid notification preferences", details: error.issues }));
+      console.error("Error updating notification preferences:", error);
+      res.status(500).json(errorResponse({ code: "INTERNAL_SERVER_ERROR", message: "Failed to update notification preferences" }));
     }
   }
 );

@@ -30,6 +30,17 @@ const failedJobsQuerySchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+
+// GET /api/admin/jobs/metrics - queue dashboard metrics
+router.get("/metrics", authenticateAdmin, (_req, res) => {
+  try {
+    res.json(successResponse({ metrics: jobQueue.metrics() }));
+  } catch (error) {
+    console.error("Error fetching job queue metrics:", error);
+    res.status(500).json(errorResponse({ code: "INTERNAL_SERVER_ERROR", message: "Failed to fetch job queue metrics" }));
+  }
+});
+
 // GET /api/admin/jobs/failed
 // ---------------------------------------------------------------------------
 
