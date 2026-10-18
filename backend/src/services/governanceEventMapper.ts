@@ -40,6 +40,12 @@ interface StellarEvent {
  * The contract-side source of truth is
  * `contracts/token-factory/src/events.rs` — keep this list in sync with the
  * `emit_*` functions defined there.
+ *
+ * Compatibility policy: abbreviated and legacy aliases may be removed only after every supported
+ * deployment emits versioned topics, all historical ledgers containing old topics are beyond the
+ * configured replay/backfill horizon, persisted projections have been rebuilt or verified, and a
+ * release deprecation window has elapsed. The backend/indexing owners must approve that cleanup;
+ * until then these aliases are part of the replay contract, not dead code.
  */
 export const GOVERNANCE_EVENT_NAMES: readonly string[] = [
   // v1 versioned events (full suffix form)

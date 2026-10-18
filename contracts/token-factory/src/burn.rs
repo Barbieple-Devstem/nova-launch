@@ -2,6 +2,12 @@ use crate::storage;
 use crate::types::Error;
 use soroban_sdk::{symbol_short, Address, Env};
 
+// Holder-initiated burns require the holder's authorization and follow token pause/compliance
+// gates. Admin reclamation is implemented separately by `crate::clawback`, may operate on a
+// frozen holder, and emits a distinct event. Both operations intentionally contribute to the
+// same `TokenInfo::total_burned` and `burn_count` aggregates; analytics must use event topics when
+// it needs to distinguish holder burns from clawbacks.
+
 const MAX_BATCH_BURN: u32 = 100;
 
 pub fn burn(env: &Env, caller: Address, token_index: u32, amount: i128) -> Result<(), Error> {
