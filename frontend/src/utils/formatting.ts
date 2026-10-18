@@ -32,6 +32,18 @@ export function truncateAddress(address: string, startChars = 6, endChars = 4): 
 }
 
 /**
+ * ENS-style short form of a Stellar address, contract ID or tx hash:
+ * the first and last `chars` characters joined by an ellipsis
+ * (e.g. "GABC…WXYZ"). Values too short to shorten are returned unchanged.
+ */
+export function shortenAddress(address: string, chars = 4): string {
+    if (address.length <= chars * 2 + 1) {
+        return address;
+    }
+    return `${address.slice(0, chars)}…${address.slice(-chars)}`;
+}
+
+/**
  * Format timestamp to readable date
  */
 export function formatDate(timestamp: number): string {

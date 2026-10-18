@@ -1,8 +1,9 @@
 import React from 'react';
 import { BurnRecord, BurnHistoryFilter } from '../../types';
 import { Card } from '../UI/Card';
+import { AddressDisplay } from '../UI/AddressDisplay';
 import { ExternalLink, ArrowUpDown, Filter } from 'lucide-react';
-import { formatDate, truncateAddress, formatTokenAmount, getExplorerUrl } from './utils';
+import { formatDate, formatTokenAmount, getExplorerUrl } from './utils';
 
 interface BurnHistoryTableProps {
   records: BurnRecord[];
@@ -164,12 +165,7 @@ export function BurnHistoryTable({
                     {formatDate(record.timestamp)}
                   </td>
                   <td className="py-3 pr-4">
-                    <span
-                      className="font-mono text-sm text-gray-700"
-                      title={record.from}
-                    >
-                      {truncateAddress(record.from)}
-                    </span>
+                    <AddressDisplay address={record.from} className="text-sm text-gray-700" />
                   </td>
                   <td className="py-3 pr-4 text-sm font-medium text-gray-900">
                     {formatTokenAmount(record.amount, decimals)} {symbol}

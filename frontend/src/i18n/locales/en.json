@@ -152,5 +152,48 @@
       "cancelled": "Cancelled",
       "expired": "Expired"
     }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Preferences are saved automatically on this device.",
+    "language": {
+      "title": "Language",
+      "description": "Choose the language used across the app."
+    },
+    "theme": {
+      "title": "Theme",
+      "description": "Use light or dark mode, or follow your system setting.",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "network": {
+      "title": "Default network",
+      "description": "The Stellar network the app uses when it starts.",
+      "testnet": "Testnet",
+      "mainnet": "Mainnet",
+      "mainnetWarning": "Mainnet transactions use real funds."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "Choose which in-app notifications you receive.",
+      "transactions": {
+        "label": "Transactions",
+        "description": "When a transaction you submitted confirms or fails."
+      },
+      "governance": {
+        "label": "Governance",
+        "description": "New proposals and voting results."
+      },
+      "campaigns": {
+        "label": "Campaigns",
+        "description": "Updates to campaigns you take part in."
+      },
+      "burns": {
+        "label": "Token burns",
+        "description": "When tokens you follow are burned."
+      }
+    },
+    "reset": "Reset to defaults"
   }
 }

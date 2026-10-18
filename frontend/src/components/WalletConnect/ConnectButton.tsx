@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { LoadingButton } from "../UI";
 import { Button } from "../UI/Button";
+import { shortenAddress } from "../../utils/formatting";
 import { useToast } from "../../hooks/useToast";
 import { WalletSelector } from "./WalletSelector";
 import type { WalletType } from "../../types";
@@ -98,7 +99,7 @@ export function ConnectButton({
             title={publicKey}
             disabled
           >
-            {publicKey.slice(0, 8)}...{publicKey.slice(-8)}
+            {shortenAddress(publicKey)}
           </Button>
           <Button
             variant="secondary"

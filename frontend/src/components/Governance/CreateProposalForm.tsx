@@ -9,7 +9,7 @@ import DOMPurify from 'dompurify';
 import { Card } from '../UI/Card';
 import { Button } from '../UI/Button';
 import { Spinner } from '../UI/Spinner';
-import { truncateAddress } from '../../utils/formatting';
+import { AddressDisplay } from '../UI/AddressDisplay';
 import { useGovernance } from '../../hooks/useGovernance';
 import type { WalletState } from '../../types';
 
@@ -234,7 +234,7 @@ export function CreateProposalForm({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Transaction</span>
-              <span className="font-mono text-xs">{truncateAddress(txHash)}</span>
+              <AddressDisplay address={txHash} network={wallet.network} type="tx" className="text-xs" />
             </div>
           </div>
           <div className="flex gap-3 justify-center">
@@ -519,7 +519,7 @@ export function CreateProposalForm({
                 <div className="p-3 bg-white rounded-lg border">
                   <div className="text-xs text-gray-500">Proposer</div>
                   <div className="font-medium text-sm">
-                    {wallet.address ? truncateAddress(wallet.address) : '—'}
+                    {wallet.address ? <AddressDisplay address={wallet.address} network={wallet.network} /> : '—'}
                   </div>
                 </div>
                 <div className="p-3 bg-white rounded-lg border">

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Modal } from './UI/Modal';
 import { Button } from './UI/Button';
 import { Input } from './UI/Input';
+import { AddressDisplay } from './UI/AddressDisplay';
 import type { PaymentInterval, CreateRecurringPaymentParams } from '../types';
 
 // Interval presets in seconds
@@ -350,7 +351,7 @@ export function CreateRecurringPaymentModal({
             </p>
             <p>
               <span className="font-medium">Recipient:</span>{' '}
-              {recipient ? `${recipient.slice(0, 8)}...${recipient.slice(-8)}` : 'Not specified'}
+              {recipient ? <AddressDisplay address={recipient} /> : 'Not specified'}
             </p>
           </div>
         </div>

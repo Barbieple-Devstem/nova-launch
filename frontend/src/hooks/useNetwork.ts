@@ -4,7 +4,7 @@ type Network = 'testnet' | 'mainnet';
 
 const NETWORK_STORAGE_KEY = 'nova_network_preference';
 
-function getStoredNetwork(): Network {
+export function getStoredNetwork(): Network {
     try {
         const stored = localStorage.getItem(NETWORK_STORAGE_KEY);
         if (stored === 'mainnet' || stored === 'testnet') {

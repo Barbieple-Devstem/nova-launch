@@ -2,10 +2,12 @@ import { useState, useMemo } from 'react';
 import { useTokenAnalytics } from '../hooks/useTokenAnalytics';
 import { TimeRangeSelector, type TimeRange, type TimeRangePreset } from '../components/TokenAnalytics/TimeRangeSelector';
 import { GranularityToggle, type Granularity } from '../components/TokenAnalytics/GranularityToggle';
-import { SupplyChart, BurnRateChart, ActivityFeed } from '../components/TokenAnalytics';
+import { ActivityFeed } from '../components/TokenAnalytics/ActivityFeed';
+import { LazySupplyChart, LazyBurnRateChart } from '../components/TokenAnalytics/LazyCharts';
 import { Skeleton, SkeletonCard } from '../components/UI/Skeleton';
 import { Button } from '../components/UI/Button';
-import { truncateAddress, formatTokenSupply } from '../utils/formatting';
+import { formatTokenSupply } from '../utils/formatting';
+import { AddressDisplay } from '../components/UI/AddressDisplay';
 
 interface Props {
   /** Token contract address from the route parameter */
@@ -110,8 +112,8 @@ export default function TokenAnalyticsPage({ address }: Props) {
           <h1 className="text-2xl font-bold text-gray-900">
             {stats?.name ?? 'Token'} Analytics
           </h1>
-          <p className="text-sm text-gray-500 font-mono mt-1">
-            {truncateAddress(address, 10, 8)}
+          <p className="text-sm text-gray-500 mt-1">
+            <AddressDisplay address={address} chars={8} />
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={refresh} aria-label="Refresh analytics data">
@@ -160,8 +162,8 @@ export default function TokenAnalyticsPage({ address }: Props) {
 
       {/* Charts */}
       <section aria-label="Supply and burn charts" className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <SupplyChart data={supplyHistory} symbol={symbol} loading={loading} />
-        <BurnRateChart data={dailyBurns} symbol={symbol} loading={loading} />
+        <LazySupplyChart data={supplyHistory} symbol={symbol} loading={loading} />
+        <LazyBurnRateChart data={dailyBurns} symbol={symbol} loading={loading} />
       </section>
 
       {/* Activity feed */}
