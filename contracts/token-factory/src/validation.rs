@@ -17,6 +17,13 @@
 //!
 //! All validation functions return `Result<(), Error>`. On validation failure,
 //! they return the first error encountered using fail-fast semantics.
+//!
+//! ## Module boundary
+//!
+//! Keep reusable contract-state and general token-parameter invariants here. Buyback campaign
+//! configuration belongs in `campaign_validation`, while encoded governance action schemas belong
+//! in `payload_validation`. A future feature gets its own `*_validation.rs` only when its rules are
+//! feature-specific; broadly reusable invariants should be added here.
 
 use soroban_sdk::Env;
 

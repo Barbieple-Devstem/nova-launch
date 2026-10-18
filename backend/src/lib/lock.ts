@@ -5,6 +5,10 @@
  * a simple, single-instance distributed lock. This is suitable for preventing
  * duplicate on-chain submissions when a client retries a slow request.
  *
+ * Use this primitive for a bounded, one-shot critical section. Use `leaderElection.ts` instead
+ * when one replica must retain an ongoing role through a heartbeat-renewed lease and fencing
+ * token. A campaign step is intentionally a lock; an event-listener owner is a leader.
+ *
  * Lock key format:  campaign_step_lock:<campaignId>:<stepNumber>
  * Lock value:       a caller-supplied request ID (used to identify the holder)
  *

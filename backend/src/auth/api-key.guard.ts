@@ -11,6 +11,15 @@ import { ConfigService } from "@nestjs/config";
 import { Reflector } from "@nestjs/core";
 import * as crypto from "crypto";
 
+/**
+ * Request guard for deployment-configured API keys and route scopes.
+ *
+ * This guard intentionally does not delegate to `ApiKeyManager` in `apiKey.ts`: it validates the
+ * static `API_KEYS_CONFIG`/legacy `API_KEYS` credentials used at the HTTP boundary, while the
+ * manager owns lifecycle operations for dynamically issued `nlk_` keys. The kebab-case filename
+ * follows Nest's `*.guard.ts` convention; the older manager keeps its camelCase public filename.
+ */
+
 export const REQUIRED_SCOPES = "required_scopes";
 
 export interface ApiKeyConfig {

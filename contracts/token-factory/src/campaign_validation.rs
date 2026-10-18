@@ -4,6 +4,11 @@
 //! creation time so an unsafe treasury or burn configuration can never be
 //! persisted — every later step execution can then assume the stored config
 //! is within bounds.
+//!
+//! This module is intentionally limited to buyback campaign configuration. General contract-state
+//! invariants live in `validation`, and governance action byte schemas live in
+//! `payload_validation`. New feature-specific rule sets may follow this module pattern; reusable
+//! token or state checks belong in `validation` instead.
 
 use crate::types::Error;
 use soroban_sdk::{Address, Env};
