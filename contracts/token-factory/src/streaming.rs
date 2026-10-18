@@ -161,6 +161,11 @@ pub fn batch_create_streams(
 }
 
 /// Sum of a stream's linearly-vested amount plus any verified-milestone bonus.
+///
+/// [`claim_stream`] delegates its time-based calculation through this helper to
+/// [`vesting::linear_vested_amount`]. That pure function is the single source of truth for the
+/// cliff and linear interpolation formula; future consumers should reuse it rather than duplicate
+/// vesting arithmetic in an entrypoint.
 fn total_unlocked(stream: &StreamInfo, now: u64) -> Result<i128, Error> {
     let vested = vesting::linear_vested_amount(
         stream.total_amount,

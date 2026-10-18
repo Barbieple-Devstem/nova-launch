@@ -1,6 +1,10 @@
 /**
- * Backend environment validation.
- * Call `validateEnv()` once at startup; throws if required variables are absent.
+ * Typed runtime environment parsing and production-safe defaults.
+ *
+ * `startupValidation.ts` is authoritative for the deployment manifest of required variables and
+ * dependency probes. Boot calls its `validateEnvVars()` first, then this module's `validateEnv()`
+ * to construct `BackendEnv`, and finally `runStartupValidation()` before listening. Requirements
+ * enforced here are runtime invariants or environment-dependent defaults, not a second manifest.
  */
 
 type Network = 'testnet' | 'mainnet';

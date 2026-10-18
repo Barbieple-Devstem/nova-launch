@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { useNetwork } from "./hooks/useNetwork";
 import { useWallet } from "./hooks/useWallet";
-import { ErrorBoundary } from "./components/UI";
+import { ErrorBoundary, ThemeToggle } from "./components/UI";
 import { PageLoader } from "./components/UI/PageLoader";
 import { DashboardLayout } from "./components/Layout";
 import { PerformanceDashboard } from "./components/PerformanceDashboard";
@@ -158,7 +158,8 @@ function App({ compatibilityInfo }: { compatibilityInfo?: CompatibilityInfo }) {
       </Suspense>
 
       {/* Language Selector */}
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+        <ThemeToggle />
         <LanguageSelector variant="inline" />
       </div>
 
