@@ -141,8 +141,12 @@ export function createRateLimiter(redis: Redis, config: RateLimitConfig) {
     let count: number;
     try {
       count = await incrementSlidingWindow(redis, key, windowMs);
-    } catch {
-      // Redis unavailable — fail open
+    } catch (error) {
+      // Redis unavailable — fail open, but make the degraded protection visible.
+      console.warn("[RateLimiter] Redis unavailable; allowing request without rate-limit enforcement", {
+        error: error instanceof Error ? error.message : String(error),
+        keyPrefix,
+      });
       next();
       return;
     }
