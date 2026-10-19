@@ -149,6 +149,10 @@ app.use("/api", v1Router);
 import { healthService } from "./lib/health/health.service";
 import { isAppError, toAppError } from "./lib/errors";
 import { getCorrelationId, getTransactionId } from "./lib/async-context";
+import { tokenInfoCache } from "./services/tokenInfoCache";
+
+// Drop cached token info whenever a token-changing event is published (#2202)
+tokenInfoCache.bindInvalidation();
 
 // Health check — liveness (is the process alive?)
 app.get("/health/live", (_req, res) => {
